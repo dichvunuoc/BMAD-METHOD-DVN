@@ -4,11 +4,12 @@
   <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
   <critical>Generate all documents in {document_output_language}</critical>
   <critical>
-    BEADS + NO-ASK MODE:
+    BEADS + AUTO LOOP (RESUMABLE):
 
-    - This workflow must run without asking the user for choices.
-    - Persist and resume state via Beads so the agent can be dismissed (context cleared) between phases.
+    - The loop is automated and resumable via Beads so the agent can be dismissed (context cleared) between phases.
     - Never edit Beads storage files directly; use CLI only.
+    - Stop-mode control: user can choose to stop after (a) 1 story, (b) 1 epic, or (c) the whole project.
+      This choice is asked ONLY if Beads does not already contain loop.stop_mode.
 
     Land the Plane protocol:
     - Run: {beads.cli.init}
@@ -23,12 +24,29 @@
       - {beads.cli.get} loop story_key
       - {beads.cli.get} loop phase
       - {beads.cli.get} loop iteration
+      - {beads.cli.get} loop stop_mode
     </action>
     <action>If missing, set defaults in Beads:
       - {beads.cli.set} loop state {"mode":"auto","status":"running"}
       - {beads.cli.set} loop phase "sprint-planning"
       - {beads.cli.set} loop iteration 0
     </action>
+    <check if="loop stop_mode is missing">
+      <output>Chọn chế độ chạy vòng lặp (mình sẽ lưu vào Beads để lần sau không hỏi nữa):</output>
+      <output>1) Dừng sau khi xong 1 story</output>
+      <output>2) Dừng sau khi xong 1 epic</output>
+      <output>3) Chạy đến khi xong cả project</output>
+      <ask>Nhập 1 / 2 / 3:</ask>
+      <check if="user chooses 1">
+        <action>Run: {beads.cli.set} loop stop_mode "story"</action>
+      </check>
+      <check if="user chooses 2">
+        <action>Run: {beads.cli.set} loop stop_mode "epic"</action>
+      </check>
+      <check if="user chooses 3">
+        <action>Run: {beads.cli.set} loop stop_mode "project"</action>
+      </check>
+    </check>
     <action>Run: {beads.cli.land}</action>
   </step>
 
@@ -120,6 +138,8 @@
     <check if="new_status != 'done'">
       <action>Repeat code-review auto-fix loop until new_status == 'done' (or HALT condition: cannot fix due to missing info)</action>
     </check>
+    <action>Load the FULL file: {sprint_status}</action>
+    <action>Set {{post_status}} = development_status[{{story_key}}] (authoritative)</action>
     <action>Write Beads checkpoint:
       - {beads.cli.set} loop phase "review"
       - {beads.cli.append} loop journal {"event":"review-done","story_key":"{{story_key}}","ts":"{date}"}
@@ -127,7 +147,28 @@
     <action>Run: {beads.cli.land}</action>
   </step>
 
-  <step n="8" goal="Increment iteration and continue loop (resumable, context-clear friendly)">
+  <step n="8" goal="Stop-mode gate (story/epic/project)">
+    <action>Read stop mode from Beads: {beads.cli.get} loop stop_mode</action>
+    <action>Load the FULL file: {sprint_status}</action>
+    <action>Derive {{epic_num}} from {{story_key}} by taking the number before the first dash (e.g., \"2-5-...\" → 2)</action>
+    <action>Compute if epic is complete: no story keys for this epic remain in a non-done state</action>
+
+    <check if="stop_mode == 'story' AND {{post_status}} == 'done'">
+      <action>Write Beads checkpoint: {beads.cli.append} loop journal {"event":"stop-after-story","story_key":"{{story_key}}","ts":"{date}"}</action>
+      <action>Run: {beads.cli.land}</action>
+      <output>⏸️ Đã hoàn thành 1 story ({{story_key}}). Dừng theo chế độ stop_mode=story. Chạy lại auto-sprint-loop để tiếp tục story tiếp theo.</output>
+      <action>HALT</action>
+    </check>
+
+    <check if="stop_mode == 'epic' AND epic is complete">
+      <action>Write Beads checkpoint: {beads.cli.append} loop journal {"event":"stop-after-epic","epic_num":"{{epic_num}}","ts":"{date}"}</action>
+      <action>Run: {beads.cli.land}</action>
+      <output>⏸️ Đã hoàn thành epic {{epic_num}}. Dừng theo chế độ stop_mode=epic. Chạy lại auto-sprint-loop để tiếp tục epic tiếp theo.</output>
+      <action>HALT</action>
+    </check>
+  </step>
+
+  <step n="9" goal="Increment iteration and continue loop (resumable, context-clear friendly)">
     <critical>
       Context clearing:
       - This workflow is resumable using Beads.

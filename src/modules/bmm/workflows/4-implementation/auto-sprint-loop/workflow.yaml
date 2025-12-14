@@ -1,5 +1,5 @@
 name: auto-sprint-loop
-description: "Fully automated sprint loop: create story → validate → fix story → dev → review → fix → repeat until sprint-status is complete (Beads-backed, resumable)."
+description: "Automated sprint loop (Beads-backed, resumable): create story → validate → fix story → dev → review → fix → repeat. Stop mode controllable: stop after 1 story, 1 epic, or whole project."
 author: "BMad"
 
 # Critical variables from config

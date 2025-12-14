@@ -54,7 +54,7 @@ agent:
 
     - trigger: auto-sprint-loop
       workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/auto-sprint-loop/workflow.yaml"
-      description: "No-ask sprint loop: create story → validate → fix → dev → review → fix (repeat) until sprint-status is complete (Beads-backed resume)"
+      description: "Sprint loop (Beads-backed resume): create → validate → fix → dev → review → fix (repeat). Stop-mode control: stop after 1 story / 1 epic / whole project."
 
     - trigger: create-story
       workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml"
