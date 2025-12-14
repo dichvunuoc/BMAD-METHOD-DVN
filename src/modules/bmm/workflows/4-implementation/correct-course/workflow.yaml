@@ -13,6 +13,18 @@ date: system-generated
 sprint_artifacts: "{config_source}:sprint_artifacts"
 sprint_status: "{sprint_artifacts}/sprint-status.yaml || {output_folder}/sprint-status.yaml"
 
+# Beads (Identity Memory) integration
+beads:
+  enabled: "{config_source}:beads_enabled || true"
+  db: "{project-root}/_bmad/_beads/beads.json"
+  lock_name: "plane"
+  cli:
+    init: "bmad beads init --directory {project-root}"
+    land: "bmad beads land --directory {project-root}"
+    get: "bmad beads get"
+    set: "bmad beads set"
+    append: "bmad beads append"
+
 # Smart input file references - handles both whole docs and sharded docs
 # Priority: Whole document first, then sharded version
 # Strategy: Load project context for impact analysis

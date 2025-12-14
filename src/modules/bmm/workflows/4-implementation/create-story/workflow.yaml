@@ -11,6 +11,18 @@ date: system-generated
 sprint_artifacts: "{config_source}:sprint_artifacts"
 story_dir: "{sprint_artifacts}"
 
+# Beads (Identity Memory) integration
+beads:
+  enabled: "{config_source}:beads_enabled || true"
+  db: "{project-root}/_bmad/_beads/beads.json"
+  lock_name: "plane"
+  cli:
+    init: "bmad beads init --directory {project-root}"
+    land: "bmad beads land --directory {project-root}"
+    get: "bmad beads get"
+    set: "bmad beads set"
+    append: "bmad beads append"
+
 # Workflow components
 installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/create-story"
 template: "{installed_path}/template.md"
