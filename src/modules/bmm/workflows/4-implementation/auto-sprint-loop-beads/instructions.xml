@@ -25,6 +25,7 @@
     BMAD Label Taxonomy (canonical):
     - bmad-story: BMAD story issue
     - needs-spec: story exists but missing BMAD STORY SPEC v1 comment
+    - needs-validation: spec exists but must be validated before dev
     - ready-for-dev: spec attached; ready to implement
     - in-dev: developer currently working
     - needs-review: implementation done; awaiting review (issue remains OPEN)
@@ -56,7 +57,7 @@
     <critical>
       Stop starting, start finishing:
       Prioritize clearing the board over filling the pipeline.
-      Priority order: Review -> Fix -> Dev -> Spec.
+      Priority order: Review -> Fix -> Validate -> Dev -> Spec.
 
       Context safety:
       This workflow MUST process only one issue per run, then checkpoint and HALT.
@@ -87,7 +88,17 @@
       <action>GOTO step 3</action>
     </check>
 
-    <action>3) Ready dev work:</action>
+    <action>3) Validate specs before starting new dev:</action>
+    <action>Run: bd list --status open --label bmad-story,needs-validation --json</action>
+    <check if="any needs-validation issues exist">
+      <action>Select the issue with the smallest numeric story key label (story-N-M) and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>If stop_mode is epic, also persist current epic key (from issue labels): bd config set bmad.loop.current_epic epic-<N></action>
+      <action>Run: validate-story-beads</action>
+      <action>GOTO step 3</action>
+    </check>
+
+    <action>4) Ready dev work:</action>
     <action>Run: bd ready --json (filter for labels ready-for-dev OR bmad-followup)</action>
     <check if="any ready dev work exists">
       <action>Select the issue with the smallest numeric story key label (story-N-M) and set {{issue_id}}</action>
@@ -97,17 +108,17 @@
       <action>GOTO step 3</action>
     </check>
 
-    <action>4) Specs (lowest priority):</action>
+    <action>5) Specs (lowest priority):</action>
     <action>Run: bd list --status open --label bmad-story,needs-spec --json</action>
     <check if="any needs-spec issues exist">
       <action>Select the issue with the smallest numeric story key label (story-N-M) and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
       <action>If stop_mode is epic, also persist current epic key (from issue labels): bd config set bmad.loop.current_epic epic-<N></action>
-      <action>Run: create-story-beads (attach BMAD STORY SPEC v1, set ready-for-dev)</action>
+      <action>Run: create-story-beads (attach BMAD STORY SPEC v1, set needs-validation)</action>
       <action>GOTO step 3</action>
     </check>
 
-    <output>No actionable work found (no needs-spec, no ready dev work, no needs-review). Check blocked issues:</output>
+    <output>No actionable work found (no needs-review, no needs-fix, no needs-validation, no ready-for-dev, no needs-spec). Check blocked issues:</output>
     <action>Run: bd blocked --json</action>
     <action>HALT</action>
   </step>

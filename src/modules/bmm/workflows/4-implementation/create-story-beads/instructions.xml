@@ -92,13 +92,16 @@
       - bd comments add {{issue_id}} "<BMAD STORY SPEC v1 ... full template ...>"
     </action>
 
-    <action>Add labels to indicate readiness:
-      - bd label add {{issue_id}} ready-for-dev
+    <action>Add labels to indicate the spec exists but must be validated before dev:</action>
+    <action>
+      - bd label add {{issue_id}} needs-validation
+      - bd label remove {{issue_id}} ready-for-dev
     </action>
-    <action>Remove label needs-spec if present:
+    <action>Remove label needs-spec if present:</action>
+    <action>
       - bd label remove {{issue_id}} needs-spec
     </action>
 
-    <output>✅ Story spec attached to Beads issue {{issue_id}} (ready-for-dev label added)</output>
+    <output>✅ Story spec attached to Beads issue {{issue_id}} (needs-validation added; validate-story-beads required before dev)</output>
   </step>
 </workflow>

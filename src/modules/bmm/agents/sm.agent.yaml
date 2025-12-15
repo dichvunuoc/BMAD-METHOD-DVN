@@ -71,6 +71,10 @@ agent:
       workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/create-story-beads/workflow.yaml"
       description: "Beads-first: create next story and store canonical story content in Beads"
 
+    - trigger: validate-story-beads
+      workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/validate-story-beads/workflow.yaml"
+      description: "Beads-first: validate BMAD STORY SPEC v1 (fresh context) and mark ready-for-dev"
+
     - trigger: file-beads-from-plan
       exec: "{project-root}/_bmad/bmm/workflows/4-implementation/file-beads-from-plan/workflow.md"
       description: "Plan-first: file bd epic + story issues from an approved Epic Plan file"
