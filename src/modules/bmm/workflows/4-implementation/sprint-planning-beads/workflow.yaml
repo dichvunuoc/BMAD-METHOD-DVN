@@ -1,0 +1,40 @@
+name: sprint-planning-beads
+description: "Beads-first sprint planning: parse epic files and populate Beads sprint.development_status (no sprint-status.yaml required)."
+author: "BMad"
+
+config_source: "{project-root}/_bmad/bmm/config.yaml"
+output_folder: "{config_source}:output_folder"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+date: system-generated
+
+beads:
+  enabled: "{config_source}:beads_enabled || true"
+  db: "{project-root}/_bmad/_beads/beads.json"
+  lock_name: "plane"
+  cli:
+    init: "bmad beads init --directory {project-root}"
+    land: "bmad beads land --directory {project-root}"
+    get: "bmad beads get"
+    set: "bmad beads set"
+    append: "bmad beads append"
+
+installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/sprint-planning-beads"
+instructions: "{installed_path}/instructions.md"
+validation: false
+template: false
+
+variables:
+  project_context: "**/project-context.md"
+  epics_location: "{output_folder}"
+  epics_pattern: "epic*.md"
+
+input_file_patterns:
+  epics:
+    description: "All epics with user stories"
+    whole: "{output_folder}/*epic*.md"
+    sharded: "{output_folder}/*epic*/*.md"
+    load_strategy: "FULL_LOAD"
+
+standalone: true
+web_bundle: false

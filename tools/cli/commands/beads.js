@@ -6,6 +6,7 @@ const { resolveBeadsPaths } = require('../lib/beads/paths');
 const { BeadsStore } = require('../lib/beads/store');
 const { acquireLock, releaseLock, readLock } = require('../lib/beads/lock');
 const { landThePlane } = require('../lib/beads/land');
+const yaml = require('yaml');
 
 function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
@@ -43,7 +44,7 @@ async function resolveOrDefaultPaths(options) {
 
 module.exports = {
   command: 'beads <op> [args...]',
-  description: 'Beads: identity memory store (init/get/set/append/query/lock/unlock/land)',
+  description: 'Beads: identity memory store (init/get/set/append/query/lock/unlock/land/import-story/export-story/export-sprint-status)',
   options: [
     ['-d, --directory <path>', 'Project directory', '.'],
     ['--db <path>', 'Override Beads DB path (relative to --directory)'],
@@ -51,6 +52,7 @@ module.exports = {
     ['--name <lockName>', 'Lock name for lock/land (default: plane)', 'plane'],
     ['--ttl <seconds>', 'Lock TTL seconds for lock/land (default: 600)', '600'],
     ['--meta <json>', 'Optional metadata JSON for set/append (default: {})'],
+    ['--out <path>', 'Output file path for export operations (relative to --directory)'],
   ],
   action: async (op, args, options) => {
     try {
@@ -161,8 +163,71 @@ module.exports = {
           return;
         }
 
+        case 'import-story': {
+          const [storyKey, inputPath] = args;
+          if (!storyKey || !inputPath) {
+            throw new Error('Usage: bmad beads import-story <story_key> <path-to-story-md>');
+          }
+
+          const absoluteInput = path.resolve(options.directory || '.', inputPath);
+          const content = await fs.readFile(absoluteInput, 'utf8');
+          const result = await store.set('stories', storyKey, content, { ...meta, importedFrom: inputPath });
+
+          if (options.json) return printJson({ ok: true, storyKey, importedFrom: inputPath, ...result });
+          console.log(chalk.green('✓'), `Imported story ${storyKey} from ${inputPath} into Beads namespace stories`);
+          return;
+        }
+
+        case 'export-story': {
+          const [storyKey] = args;
+          if (!storyKey) {
+            throw new Error('Usage: bmad beads export-story <story_key> --out <path>');
+          }
+          if (!options.out) {
+            throw new Error('export-story requires --out <path>');
+          }
+
+          const value = await store.get('stories', storyKey);
+          if (value === null) {
+            throw new Error(`Story "${storyKey}" not found in Beads (namespace "stories")`);
+          }
+
+          const absoluteOut = path.resolve(options.directory || '.', options.out);
+          await fs.ensureDir(path.dirname(absoluteOut));
+          await fs.writeFile(absoluteOut, typeof value === 'string' ? value : JSON.stringify(value, null, 2), 'utf8');
+
+          if (options.json) return printJson({ ok: true, storyKey, out: options.out });
+          console.log(chalk.green('✓'), `Exported story ${storyKey} to ${options.out}`);
+          return;
+        }
+
+        case 'export-sprint-status': {
+          if (!options.out) {
+            throw new Error('export-sprint-status requires --out <path>');
+          }
+
+          const sprint = await store.get('sprint', 'development_status');
+          const developmentStatus = sprint && typeof sprint === 'object' ? sprint : {};
+
+          const data = {
+            generated: new Date().toISOString().slice(0, 16).replace('T', ' '),
+            tracking_system: 'beads',
+            development_status: developmentStatus,
+          };
+
+          const absoluteOut = path.resolve(options.directory || '.', options.out);
+          await fs.ensureDir(path.dirname(absoluteOut));
+          await fs.writeFile(absoluteOut, yaml.stringify(data, { indent: 2, lineWidth: 0 }), 'utf8');
+
+          if (options.json) return printJson({ ok: true, out: options.out, storyCount: Object.keys(developmentStatus).length });
+          console.log(chalk.green('✓'), `Exported sprint status to ${options.out}`);
+          return;
+        }
+
         default: {
-          throw new Error(`Unknown beads op "${op}". Supported: init, get, set, append, query, lock, unlock, land`);
+          throw new Error(
+            `Unknown beads op "${op}". Supported: init, get, set, append, query, lock, unlock, land, import-story, export-story, export-sprint-status`,
+          );
         }
       }
     } catch (error) {

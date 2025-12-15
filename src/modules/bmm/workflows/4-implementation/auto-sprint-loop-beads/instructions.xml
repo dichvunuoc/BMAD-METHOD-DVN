@@ -1,0 +1,92 @@
+<workflow>
+  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>Generate all documents in {document_output_language}</critical>
+  <critical>
+    Beads-first:
+    - Sprint tracking lives in Beads: sprint.development_status.
+    - Stories live in Beads: stories.<story_key> (canonical markdown).
+    - Files are optional exports only.
+
+    Stop mode (stored in Beads): story | epic | project.
+    Ask only if missing.
+  </critical>
+
+  <step n="0" goal="Initialize and configure stop_mode">
+    <action>Run: {beads.cli.init}</action>
+    <action>Run: {beads.cli.land}</action>
+    <action>Read: bmad beads get loop stop_mode</action>
+    <check if="stop_mode missing">
+      <output>Chọn chế độ dừng vòng lặp:</output>
+      <output>1) Dừng sau 1 story</output>
+      <output>2) Dừng sau 1 epic</output>
+      <output>3) Dừng khi xong cả project</output>
+      <ask>Nhập 1/2/3:</ask>
+      <check if="user chooses 1"><action>bmad beads set loop stop_mode story</action></check>
+      <check if="user chooses 2"><action>bmad beads set loop stop_mode epic</action></check>
+      <check if="user chooses 3"><action>bmad beads set loop stop_mode project</action></check>
+    </check>
+    <action>Run: {beads.cli.land}</action>
+  </step>
+
+  <step n="1" goal="Ensure sprint tracking exists in Beads">
+    <action>Read: bmad beads get sprint development_status</action>
+    <check if="missing or empty">
+      <action>Run sprint-planning-beads workflow to populate sprint.development_status</action>
+    </check>
+  </step>
+
+  <step n="2" goal="Stop if project complete">
+    <action>Compute completion: all values in sprint.development_status are "done"</action>
+    <check if="complete">
+      <action>bmad beads set loop state {"status":"done","completedAt":"{date}"}</action>
+      <action>bmad beads append loop journal {"event":"project-complete","ts":"{date}"}</action>
+      <action>Run: {beads.cli.land}</action>
+      <output>✅ Project complete (Beads-first). All stories are done.</output>
+      <action>HALT</action>
+    </check>
+  </step>
+
+  <step n="3" goal="Select next story and advance it">
+    <action>Select FIRST story_key in sprint.development_status with status in [backlog, ready-for-dev, in-progress, review]</action>
+    <action>Store selected story_key into Beads: bmad beads set loop story_key {{story_key}}</action>
+
+    <check if="status == backlog">
+      <action>Run create-story-beads for {{story_key}}</action>
+    </check>
+
+    <check if="status == ready-for-dev or in-progress">
+      <action>Run dev-story-beads for {{story_key}}</action>
+    </check>
+
+    <check if="status == review">
+      <action>Run code-review-beads for {{story_key}}</action>
+    </check>
+
+    <action>After phase, reload sprint.development_status and read post_status for {{story_key}}</action>
+  </step>
+
+  <step n="4" goal="Stop-mode gate">
+    <action>Read stop_mode from Beads</action>
+    <action>Derive epic_num from story_key (number before first dash)</action>
+    <action>Compute epic complete: all stories with that epic_num are "done"</action>
+
+    <check if="stop_mode == story AND post_status == done">
+      <output>⏸️ Dừng theo chế độ story: {{story_key}} đã done. Chạy lại để tiếp tục.</output>
+      <action>HALT</action>
+    </check>
+
+    <check if="stop_mode == epic AND epic complete">
+      <output>⏸️ Dừng theo chế độ epic: epic {{epic_num}} đã complete. Chạy lại để tiếp tục.</output>
+      <action>HALT</action>
+    </check>
+  </step>
+
+  <step n="5" goal="Checkpoint for context clearing">
+    <action>bmad beads append loop journal {"event":"loop-continue","ts":"{date}","story_key":"{{story_key}}"}</action>
+    <action>Run: {beads.cli.land}</action>
+    <output>🔁 Loop checkpoint saved to Beads. Safe to dismiss/clear agent context. Re-run this workflow to continue.</output>
+    <action>GOTO step 2</action>
+  </step>
+</workflow>
