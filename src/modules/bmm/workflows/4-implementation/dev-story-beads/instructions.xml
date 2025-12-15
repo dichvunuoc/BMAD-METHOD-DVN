@@ -7,7 +7,8 @@
   <critical>
     REAL Beads integration (steveyegge/beads):
     - Canonical work item is a Beads issue.
-    - Use bd status transitions: open -> in_progress -> closed (or blocked).
+    - Use bd status transitions: open -> in_progress -> open/blocked.
+    - IMPORTANT: Do NOT close for review. Keep issue OPEN with label needs-review until review passes.
     - Record implementation details as comments, and file follow-ups as discovered-from issues.
   </critical>
 
@@ -43,14 +44,14 @@
     </action>
   </step>
 
-  <step n="3" goal="Close or block">
+  <step n="3" goal="Hand off to review (or block)">
     <check if="all acceptance criteria satisfied and tests passing">
-      <action>bd close {{issue_id}} --reason "Done" --json</action>
       <action>bd label remove {{issue_id}} in-dev</action>
       <action>bd label remove {{issue_id}} ready-for-dev</action>
       <action>bd label remove {{issue_id}} needs-fix</action>
       <action>bd label add {{issue_id}} needs-review</action>
-      <output>✅ Closed issue {{issue_id}}</output>
+      <action>Mark ready for review: bd update {{issue_id}} --status open --json</action>
+      <output>✅ Implementation complete; issue {{issue_id}} is OPEN and labeled needs-review</output>
     </check>
 
     <check if="blocked">

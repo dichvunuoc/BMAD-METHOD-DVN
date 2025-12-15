@@ -26,8 +26,8 @@
     - needs-spec: story exists but missing BMAD STORY SPEC v1 comment
     - ready-for-dev: spec attached; ready to implement
     - in-dev: developer currently working
-    - needs-review: dev complete; awaiting review
-    - needs-fix: reopened after review with required changes
+    - needs-review: implementation done; awaiting review (issue remains OPEN)
+    - needs-fix: review failed; required changes pending (issue remains OPEN)
     - reviewed: review completed
     - done: final completion (after review)
     - bmad-followup: follow-up issues created from review/discovery
@@ -52,19 +52,35 @@
   </step>
 
   <step n="1" goal="Pick next action by labels (no-ask)">
-    <critical>Prefer deterministic phases over generic ready queue.</critical>
+    <critical>
+      Stop starting, start finishing:
+      Prioritize clearing the board over filling the pipeline.
+      Priority order: Review -> Fix -> Dev -> Spec.
 
-    <action>1) If any story issues need specs, enrich them first:</action>
-    <action>Run: bd list --status open --label bmad-story,needs-spec --json</action>
-    <check if="any needs-spec issues exist">
-      <action>Pick highest priority issue and set {{issue_id}}</action>
+      Context safety:
+      This workflow MUST process only one issue per run, then checkpoint and HALT.
+    </critical>
+
+    <action>1) Reviews (highest priority):</action>
+    <action>Run: bd list --status open --label bmad-story,needs-review --json</action>
+    <check if="any needs-review issues exist">
+      <action>Select oldest issue and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
-      <action>Run: create-story-beads (attach BMAD STORY SPEC v1, set ready-for-dev)</action>
-      <action>GOTO step 1</action>
+      <action>Run: code-review-beads</action>
+      <action>GOTO step 3</action>
     </check>
 
-    <action>2) If any stories are ready to implement/fix, run dev:</action>
-    <action>Run: bd ready --json (filter for labels ready-for-dev OR needs-fix OR bmad-followup)</action>
+    <action>2) Fixes (next priority):</action>
+    <action>Run: bd list --status open --label bmad-story,needs-fix --json</action>
+    <check if="any needs-fix issues exist">
+      <action>Select highest priority issue and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>Run: dev-story-beads</action>
+      <action>GOTO step 3</action>
+    </check>
+
+    <action>3) Ready dev work:</action>
+    <action>Run: bd ready --json (filter for labels ready-for-dev OR bmad-followup)</action>
     <check if="any ready dev work exists">
       <action>Select top ready issue and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
@@ -72,12 +88,12 @@
       <action>GOTO step 3</action>
     </check>
 
-    <action>3) If any stories need review, run review:</action>
-    <action>Run: bd list --status closed --label bmad-story,needs-review --json</action>
-    <check if="any needs-review issues exist">
-      <action>Select most recent and set {{issue_id}}</action>
+    <action>4) Specs (lowest priority):</action>
+    <action>Run: bd list --status open --label bmad-story,needs-spec --json</action>
+    <check if="any needs-spec issues exist">
+      <action>Pick highest priority issue and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
-      <action>Run: code-review-beads</action>
+      <action>Run: create-story-beads (attach BMAD STORY SPEC v1, set ready-for-dev)</action>
       <action>GOTO step 3</action>
     </check>
 
@@ -95,7 +111,7 @@
 
     <check if="stop_mode == 'story'">
       <output>⏸️ Dừng theo chế độ story: {{issue_id}} đã xử lý. Chạy lại workflow để tiếp tục issue tiếp theo.</output>
-      <action>HALT</action>
+      <action>GOTO step 4</action>
     </check>
 
     <check if="stop_mode == 'epic'">
@@ -104,8 +120,13 @@
       <action>If the epic containing {{issue_id}} is now complete (all children closed), then HALT.</action>
       <check if="epic is complete">
         <output>⏸️ Dừng theo chế độ epic: epic đã hoàn tất. Chạy lại workflow để tiếp tục epic tiếp theo.</output>
-        <action>HALT</action>
+        <action>GOTO step 4</action>
       </check>
+    </check>
+
+    <check if="stop_mode == 'project'">
+      <output>🚀 Project mode: continue to next unit-of-work (via restart after checkpoint).</output>
+      <action>GOTO step 4</action>
     </check>
   </step>
 
@@ -114,7 +135,7 @@
       After this checkpoint, it's safe to dismiss/clear agent context.
       Re-running this same workflow should resume from Beads state (bd config keys).
     </critical>
-    <action>bd comments add {{issue_id}} "BMAD CHECKPOINT v1\nSafe to clear agent context. Re-run auto-sprint-loop-beads to continue."</action>
+    <action>bd comments add {{issue_id}} "BMAD CHECKPOINT v1\nUnit-of-work completed. Safe to clear agent context.\nRe-run auto-sprint-loop-beads to continue (Review -> Fix -> Dev -> Spec)."</action>
     <action>HALT</action>
   </step>
 </workflow>
