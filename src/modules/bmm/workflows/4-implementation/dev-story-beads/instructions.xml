@@ -11,12 +11,19 @@
     - Record implementation details as comments, and file follow-ups as discovered-from issues.
   </critical>
 
+  <critical>
+    ATOMIC SPEC CONVENTION (v1):
+    - Find the latest comment containing the marker header: \"BMAD STORY SPEC v1\".
+    - Treat that comment as the authoritative ordered task checklist (do NOT rely on any story.md file).
+    - When you complete a task (e.g. \"Task 2\"), do NOT edit old comments; append a new progress comment with evidence.
+  </critical>
+
   <step n="1" goal="Select next ready story issue">
     <action>Ensure `bd` is installed and the repo is initialized (bd init).</action>
     <action>Find ready work: bd ready --json</action>
     <action>Select the highest-priority ready issue with label bmad-story (or ready-for-dev). Set {{issue_id}}.</action>
     <action>Load issue: bd show {{issue_id}} --json</action>
-    <action>Load spec comments: bd comments {{issue_id}} (find the latest BMAD STORY SPEC comment)</action>
+    <action>Load spec comments: bd comments {{issue_id}} --json (or without --json if unsupported) and select the latest \"BMAD STORY SPEC v1\" comment.</action>
     <action>Load {project_context} for coding standards if exists</action>
   </step>
 
@@ -24,8 +31,9 @@
     <action>Mark in progress: bd update {{issue_id}} --status in_progress --json</action>
     <action>Implement according to the issue spec and acceptance criteria. Follow red-green-refactor.</action>
     <action>Run full test suite. Fix failures.</action>
-    <action>Comment progress with concrete evidence (files changed, tests run):
-      - bd comments add {{issue_id}} "Implemented: ...\nFiles: ...\nTests: ...\nNotes: ..."
+    <action>Comment progress with concrete evidence using this template (append-only):</action>
+    <action>
+      bd comments add {{issue_id}} \"BMAD PROGRESS v1\\nTask: <Task N title>\\nStatus: completed\\nEvidence:\\n- Files: <paths>\\n- Tests: <commands + result>\\n- Notes: <decisions/gotchas>\"
     </action>
   </step>
 
@@ -38,7 +46,7 @@
 
     <check if="blocked">
       <action>bd update {{issue_id}} --status blocked --json</action>
-      <action>bd comments add {{issue_id}} "BLOCKED: <reason>"</action>
+      <action>bd comments add {{issue_id}} "BMAD BLOCKED v1\nReason: <reason>\nNext action: <what unblocks>"</action>
       <output>⛔ Issue {{issue_id}} marked blocked</output>
     </check>
   </step>

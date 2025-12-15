@@ -11,6 +11,12 @@
     - If follow-ups remain, create discovered-from issues and link them.
   </critical>
 
+  <critical>
+    ATOMIC SPEC CONVENTION (v1):
+    - Find the latest comment containing: \"BMAD STORY SPEC v1\" and review against it.
+    - Record review results as a single append-only comment with marker: \"BMAD REVIEW v1\".
+  </critical>
+
   <step n="1" goal="Select issue to review">
     <action>Ensure `bd` is installed and initialized.</action>
     <action>Select a recently completed story issue to review:
@@ -19,7 +25,7 @@
     </action>
     <action>Set {{issue_id}}</action>
     <action>Load issue: bd show {{issue_id}} --json</action>
-    <action>Load spec comments: bd comments {{issue_id}}</action>
+    <action>Load spec comments: bd comments {{issue_id}} --json (or without --json if unsupported) and select the latest \"BMAD STORY SPEC v1\" comment.</action>
     <action>Discover actual changes with git: git status --porcelain; git diff --name-only; git diff --cached --name-only</action>
     <action>Load {project_context} if exists</action>
   </step>
@@ -29,14 +35,16 @@
     <action>Find 3-10 actionable issues minimum. Categorize HIGH/MEDIUM/LOW.</action>
     <action>Auto-fix all HIGH+MEDIUM issues now when feasible (code + tests).</action>
 
-    <action>Record review results as a comment on the issue:
-      - bd comments add {{issue_id}} "REVIEW (AI):\nHIGH: ...\nMEDIUM: ...\nLOW: ...\nFixed: ...\nRemaining: ..."
+    <action>Record review results as a single comment using this template:</action>
+    <action>
+      bd comments add {{issue_id}} \"BMAD REVIEW v1\\nSummary: <1-2 sentences>\\nHIGH:\\n- ...\\nMEDIUM:\\n- ...\\nLOW:\\n- ...\\nFixed in this pass:\\n- ...\\nRemaining follow-ups:\\n- ...\\nEvidence:\\n- Files: <list>\\n- Tests: <commands + results>\"
     </action>
 
     <check if="remaining HIGH/MEDIUM issues exist">
       <action>Create follow-up issues and link them discovered-from:
         - bd create "Follow-up: ..." -t task -p 2 --deps discovered-from:{{issue_id}} --json
       </action>
+      <action>Label follow-ups for queueing (recommended): bd label add <new_id> bmad-followup</action>
     </check>
   </step>
 

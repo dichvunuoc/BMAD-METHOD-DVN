@@ -7,7 +7,7 @@
     REAL Beads integration (steveyegge/beads):
     - Canonical tracker is Beads issues (bd).
     - This workflow does NOT create a story .md file.
-    - It enriches a Beads story issue by adding a full BMAD story spec as a comment.
+    - It enriches a Beads story issue by adding a full BMAD story spec as a single canonical comment.
 
     Required tools:
     - bd init
@@ -15,6 +15,13 @@
     - bd show
     - bd comments add
     - bd label add
+  </critical>
+
+  <critical>
+    ATOMIC SPEC CONVENTION (v1):
+    - The story spec MUST be a single comment containing a stable marker header, so other workflows can reliably find it.
+    - Marker header: \"BMAD STORY SPEC v1\"
+    - The spec comment is append-only; updates are done by adding a newer \"BMAD STORY SPEC v1\" comment (never editing .beads files).
   </critical>
 
   <step n="1" goal="Select a story issue to enrich">
@@ -26,21 +33,50 @@
     </action>
     <action>Select the next story issue to enrich and set {{issue_id}}.</action>
     <action>Load the issue: bd show {{issue_id}} --json</action>
+    <action>Load existing comments (if any): bd comments {{issue_id}} --json (or without --json if unsupported) and detect whether a prior \"BMAD STORY SPEC v1\" exists.</action>
     <action>Load relevant project docs (epics/prd/architecture + {project_context} if exists) for context.</action>
   </step>
 
   <step n="2" goal="Generate BMAD story spec and attach to issue">
-    <action>Generate a complete story spec markdown including:
-      - Story summary
-      - Acceptance Criteria
-      - Tasks/Subtasks (ordered)
-      - Dev Notes / constraints
-      - Test requirements
-      - Status conventions for bd (open/in_progress/blocked/closed)
+    <action>Generate a single markdown comment using EXACT template below (fill in placeholders):</action>
+    <action>
+      ---
+      BMAD STORY SPEC v1
+      Issue: {{issue_id}}
+      Generated: {date}
+      ---
+
+      ## Story
+      <1-3 sentences of user value and scope>
+
+      ## Acceptance Criteria
+      - (AC1) ...
+      - (AC2) ...
+
+      ## Tasks / Subtasks (Authoritative)
+      - [ ] Task 1: ... (AC: 1)
+        - [ ] ...
+      - [ ] Task 2: ... (AC: 2)
+        - [ ] ...
+
+      ## Constraints / Notes
+      - Coding standards: {project_context} (if present)
+      - Architecture constraints: ...
+      - Non-goals: ...
+
+      ## Test Plan (Required)
+      - Unit tests: ...
+      - Integration/e2e tests: ...
+      - Commands to run locally: ...
+
+      ## Beads Workflow
+      - Canonical tracker: this issue + its dependencies + comments.
+      - Status mapping: open → in_progress → closed (blocked when needed).
+      - Labels used by BMAD: bmad-story, ready-for-dev, needs-review, reviewed, done
     </action>
 
     <action>Attach the spec as a comment (canonical, append-only):
-      - bd comments add {{issue_id}} "<BMAD STORY SPEC MARKDOWN>"
+      - bd comments add {{issue_id}} "<BMAD STORY SPEC v1 ... full template ...>"
     </action>
 
     <action>Add labels to indicate readiness:
