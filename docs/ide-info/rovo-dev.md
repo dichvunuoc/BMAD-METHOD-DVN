@@ -321,6 +321,20 @@ Rovo Dev can also connect to Model Context Protocol (MCP) servers, which provide
 
 Configure MCP servers in `~/.rovodev/mcp.json` or `.rovodev/mcp.json`.
 
+#### MCP Agent Mail (kênh giao tiếp giữa nhiều agent BMAD)
+
+Bạn có thể dùng `mcp_agent_mail` làm mailbox chung để các BMAD subagents phối hợp qua threads + inbox/outbox + file reservations:
+
+- Repo: `https://github.com/steveyegge/mcp_agent_mail`
+- Default URL: `http://127.0.0.1:8765/mcp/`
+- Server name (gợi ý): `mcp-agent-mail`
+
+Quy ước khuyến nghị:
+
+- `project_key` = absolute path repo
+- `agent_name` = `bmad-{module}-{agent}`
+- `thread_id` = ticket/work item
+
 ## Integration with Other IDE Handlers
 
 BMAD-METHOD supports multiple IDEs simultaneously. You can have both Rovo Dev and other IDE configurations (Cursor, VS Code, etc.) in the same project. Each IDE will have its own artifacts installed in separate directories.

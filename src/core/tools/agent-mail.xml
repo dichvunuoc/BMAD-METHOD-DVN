@@ -1,0 +1,55 @@
+<tool id="_bmad/core/tools/agent-mail" name="MCP Agent Mail (Multi-Agent Communication)"
+  description="Use mcp_agent_mail as a shared communication channel (inbox/outbox, threads, file reservations) between BMAD agents running in separate sessions"
+  standalone="true">
+  <objective>Enable asynchronous, auditable communication between BMAD agents via the mcp_agent_mail MCP server.</objective>
+
+  <critical-context>
+    <i>This tool assumes the MCP server is already configured in your IDE/agent runtime as a server named something like `mcp-agent-mail`.</i>
+    <i>mcp_agent_mail is an external MCP server: https://github.com/steveyegge/mcp_agent_mail</i>
+    <i>BMAD “party mode” is prompt orchestration in a single chat; Agent Mail is for coordinating multiple agents running in separate sessions/terminals/IDEs.</i>
+  </critical-context>
+
+  <flow>
+    <step n="1" title="Confirm prerequisites">
+      <action>Confirm the user has started the mcp_agent_mail HTTP server (default `http://127.0.0.1:8765/mcp/`).</action>
+      <action>Confirm the MCP client is configured with the server URL and auth header (Bearer token) if required.</action>
+      <action>Determine `project_key` (recommended): absolute path to the repo that all agents are collaborating on.</action>
+      <action if="project_key not known">Use the current repo root absolute path.</action>
+    </step>
+
+    <step n="2" title="Register each BMAD agent as an identity">
+      <action>For each participating BMAD agent session, call `ensure_project(project_key)` once.</action>
+      <action>For each participating BMAD agent session, call `register_agent(project_key, agent_name, program, model)`.</action>
+      <i>Recommended `agent_name` convention for BMAD: `bmad-{module}-{agent}` (e.g., `bmad-core-bmad-master`, `bmad-bmm-dev`, `bmad-bmm-architect`).</i>
+      <i>Recommended `thread_id` convention: use a ticket key or workflow name (e.g., `FEAT-123`, `party-mode:auth-design`).</i>
+    </step>
+
+    <step n="3" title="Establish a shared thread and basic routing rules">
+      <action>Create/choose a stable `thread_id` for the work item.</action>
+      <action>Post a “thread kickoff” message that states: objective, roles, deliverables, and which agent owns which files/areas.</action>
+      <action>Ask each agent to acknowledge the kickoff by replying in the same `thread_id`.</action>
+    </step>
+
+    <step n="4" title="Use file reservations to prevent conflicts">
+      <action>Before editing, each agent should reserve its intended files/globs via `file_reservation_paths(project_key, agent_name, paths, ttl_seconds, exclusive)`.</action>
+      <action>Prefer exclusive reservations for files being actively edited; use non-exclusive for “watching” or read-only analysis.</action>
+      <action if="FILE_RESERVATION_CONFLICT">Negotiate by adjusting paths, splitting work, or waiting for expiry; record the decision in the thread.</action>
+    </step>
+
+    <step n="5" title="Message loop: send, fetch, acknowledge, summarize">
+      <action>Agents send updates/questions via `send_message(..., thread_id=...)`.</action>
+      <action>Agents poll their inbox via `fetch_inbox(project_key, agent_name, limit)` (or inbox resources if supported by the client).</action>
+      <action>Agents acknowledge processed messages via `acknowledge_message(...)` to reduce rework/duplication.</action>
+      <action>After each “round”, post a short summary + next actions + current reservations.</action>
+    </step>
+
+    <step n="6" title="Close out the thread cleanly">
+      <action>Release or let file reservations expire when work is complete.</action>
+      <action>Post a final thread summary including: decisions, links/paths to artifacts, and any follow-up items.</action>
+    </step>
+  </flow>
+
+  <halt-conditions critical="true">
+    <i>HALT if MCP server is unreachable or auth repeatedly fails; switch to manual coordination until server is fixed.</i>
+  </halt-conditions>
+</tool>

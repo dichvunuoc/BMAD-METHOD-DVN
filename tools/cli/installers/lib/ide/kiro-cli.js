@@ -215,12 +215,28 @@ class KiroCliSetup extends BaseIdeSetup {
     const personName = agentData.agent.metadata.name;
     const role = agentData.agent.persona.role;
 
+    // Optional: wire mcp_agent_mail into every generated agent when configured.
+    // Enable by setting BMAD_MCP_AGENT_MAIL_URL (and optionally BMAD_MCP_AGENT_MAIL_TOKEN_ENV).
+    // Example:
+    //   BMAD_MCP_AGENT_MAIL_URL="http://127.0.0.1:8765/mcp/"
+    //   BMAD_MCP_AGENT_MAIL_TOKEN_ENV="MCP_AGENT_MAIL_TOKEN"
+    const agentMailUrl = process.env.BMAD_MCP_AGENT_MAIL_URL;
+    const agentMailTokenEnv = process.env.BMAD_MCP_AGENT_MAIL_TOKEN_ENV || 'MCP_AGENT_MAIL_TOKEN';
+    const mcpServers = {};
+    if (agentMailUrl) {
+      mcpServers['mcp-agent-mail'] = {
+        type: 'http',
+        url: agentMailUrl,
+        headers: { Authorization: `Bearer \${${agentMailTokenEnv}}` },
+      };
+    }
+
     const agentConfig = {
       name: agentName,
       description: `${personName} - ${role}`,
       prompt: `file://./${agentName}-prompt.md`,
       tools: ['*'],
-      mcpServers: {},
+      mcpServers,
       useLegacyMcpJson: true,
       resources: [],
     };

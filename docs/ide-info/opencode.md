@@ -4,6 +4,19 @@
 
 BMAD agents are installed as OpenCode agents in `.opencode/agent/BMAD/{module_name}` and workflow commands in `.opencode/command/BMAD/{module_name}`.
 
+## MCP Agent Mail (kênh phối hợp nhiều agent)
+
+Để các agent BMAD chạy ở nhiều session phối hợp qua inbox/outbox + thread + file reservations, hãy cấu hình `mcp_agent_mail`:
+
+- Repo: `https://github.com/steveyegge/mcp_agent_mail`
+- Default URL: `http://127.0.0.1:8765/mcp/`
+
+Gợi ý:
+
+- `project_key` = absolute path repo
+- `agent_name` = `bmad-{module}-{agent}`
+- `thread_id` = ticket/work item
+
 ### How to Use
 
 1. **Switch Agents**: Press **Tab** to cycle through primary agents or select using the `/agents`
