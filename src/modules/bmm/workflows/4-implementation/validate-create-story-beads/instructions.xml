@@ -1,0 +1,62 @@
+<workflow>
+  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>Generate all documents in {document_output_language}</critical>
+
+  <critical>
+    REAL Beads integration (steveyegge/beads):
+    - Canonical tracker is Beads issues (bd).
+    - This workflow validates the latest "BMAD STORY SPEC v1" comment and improves it by appending a newer corrected "BMAD STORY SPEC v1" comment.
+    - Never edit .beads/* by hand; use bd CLI only.
+  </critical>
+
+  <critical>
+    ATOMIC SPEC CONVENTION (v1):
+    - Find the latest comment containing: "BMAD STORY SPEC v1"
+    - Improvements must be append-only: add a newer "BMAD STORY SPEC v1" comment (do NOT overwrite prior spec comments).
+  </critical>
+
+  <step n="1" goal="Select a story issue to validate">
+    <action>Ensure `bd` is installed and initialized (bd init if needed).</action>
+    <action>Select a story issue to validate:
+      - Prefer: bd ready --json (filter for labels bmad-story AND ready-for-dev)
+      - Or: user provides issue_id
+    </action>
+    <action>Set {{issue_id}}</action>
+    <action>Load issue: bd show {{issue_id}} --json</action>
+    <action>Load comments: bd comments {{issue_id}} --json (or without --json if unsupported)</action>
+    <action>Extract the latest comment containing "BMAD STORY SPEC v1" (this is the canonical spec for validation).</action>
+    <action>Load {project_context} if exists</action>
+  </step>
+
+  <step n="2" goal="Validate spec quality and auto-fix the spec">
+    <critical>
+      You are a fresh-context validator. Your job is to improve clarity, remove ambiguity, and ensure dev-readiness.
+      Treat this as a quality gate BEFORE dev-story-beads.
+    </critical>
+
+    <action>Validate the spec against these checks:</action>
+    <action>
+      - Scope is single-story and implementable within one iteration
+      - Acceptance Criteria are testable and unambiguous
+      - Tasks/Subtasks are actionable and map to ACs
+      - Constraints/non-goals are explicit
+      - Test plan is specific (commands, what to assert)
+      - Missing context is surfaced as explicit TODOs (do not block unless critical)
+    </action>
+
+    <action>If you find issues, produce an improved spec by rewriting the template content (while preserving the same marker header "BMAD STORY SPEC v1").</action>
+    <action>Append the improved spec as a NEW comment (append-only):
+      - bd comments add {{issue_id}} "<BMAD STORY SPEC v1 ... improved ...>"
+    </action>
+
+    <action>Ensure labels reflect readiness:
+      - bd label add {{issue_id}} ready-for-dev
+      - bd label remove {{issue_id}} needs-spec (if present)
+    </action>
+
+    <output>✅ Spec validated and (if needed) improved for {{issue_id}} (append-only)</output>
+  </step>
+</workflow>
+

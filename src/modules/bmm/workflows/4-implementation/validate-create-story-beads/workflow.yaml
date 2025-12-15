@@ -1,0 +1,5 @@
+name: validate-create-story-beads
+description: "Beads-first: validate and improve BMAD STORY SPEC v1 (append-only) before dev. Uses fresh context and auto-fix for spec issues."
+
+# Beads (steveyegge/beads) integration (canonical tracker)
+installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/validate-create-story-beads"

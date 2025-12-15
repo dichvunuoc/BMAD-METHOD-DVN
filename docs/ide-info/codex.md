@@ -16,7 +16,7 @@ Nếu bạn chạy nhiều agent BMAD song song và muốn chúng trao đổi qu
 Gợi ý quy ước:
 
 - `project_key` = absolute path repo
-- `agent_name` = `bmad-{module}-{agent}`
+- `agent_name` = adjective+noun (vd `BlueLake`) theo rule của `mcp_agent_mail`; ghi vai trò ở `task_description`
 - `thread_id` = ticket/work item
 
 ### Examples

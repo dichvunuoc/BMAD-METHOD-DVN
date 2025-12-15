@@ -31,7 +31,7 @@ Thêm một server entry tương đương mẫu `cursor.mcp.json` của upstream
 ### Quy ước đặt tên để các agent “nói chuyện” đúng kênh
 
 - **project_key**: đường dẫn tuyệt đối tới repo (tất cả agent dùng cùng `project_key`).
-- **agent_name**: `bmad-{module}-{agent}` (vd `bmad-core-bmad-master`, `bmad-bmm-dev`).
+- **agent_name**: theo rule của `mcp_agent_mail` nên dùng dạng adjective+noun (vd `BlueLake`, `RedFox`). Dùng `task_description` để ghi vai trò (vd “BMAD SM1 create-story-beads”).
 - **thread_id**: ticket/work item (vd `FEAT-123`, `party-mode:auth`).
 
 ### How to Use

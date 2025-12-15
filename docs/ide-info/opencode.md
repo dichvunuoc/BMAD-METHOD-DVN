@@ -14,7 +14,7 @@ BMAD agents are installed as OpenCode agents in `.opencode/agent/BMAD/{module_na
 Gợi ý:
 
 - `project_key` = absolute path repo
-- `agent_name` = `bmad-{module}-{agent}`
+- `agent_name` = adjective+noun (vd `BlueLake`) theo rule của `mcp_agent_mail`; ghi vai trò ở `task_description`
 - `thread_id` = ticket/work item
 
 ### How to Use
