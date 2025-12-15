@@ -27,9 +27,14 @@
   <step n="1" goal="Select a story issue to enrich">
     <action>Ensure `bd` is installed and available.</action>
     <action>Run `bd init` if needed.</action>
+    <action>If loop orchestrator set an issue, prefer it:
+      - Read: bd config get bmad.loop.current_issue
+      - If set, use that as {{issue_id}} and continue.
+    </action>
     <action>Find candidate story issues:
-      - Prefer: bd list --status open --label bmad-story --json
-      - Or: bd ready --json (filter for label bmad-story)
+      - Prefer: bd list --status open --label bmad-story,needs-spec --json
+      - Or: bd list --status open --label bmad-story --json
+      - Selection rule: choose the smallest numeric story key label (story-N-M), e.g. story-7-1 before story-7-2.
     </action>
     <action>Select the next story issue to enrich and set {{issue_id}}.</action>
     <action>Load the issue: bd show {{issue_id}} --json</action>

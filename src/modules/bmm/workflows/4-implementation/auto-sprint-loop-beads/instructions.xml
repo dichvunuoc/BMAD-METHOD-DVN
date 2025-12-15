@@ -14,6 +14,7 @@
     Loop control via bd config:
     - bmad.loop.stop_mode = story | epic | project
     - bmad.loop.current_issue = <issue-id>
+    - (optional) bmad.loop.current_epic = epic-<N> (used to keep order within an epic)
 
     Multi-agent integrity:
     - Prefer bd daemon / bd sync for consistency
@@ -59,13 +60,19 @@
 
       Context safety:
       This workflow MUST process only one issue per run, then checkpoint and HALT.
+
+      Ordering (IMPORTANT):
+      - Prefer the smallest numeric story key label first (e.g., story-7-1 before story-7-2).
+      - Sort key: story-(N)-(M) ascending by N then M.
+      - If a story does not have a numeric story key label, fall back to lowest priority number, then oldest created.
     </critical>
 
     <action>1) Reviews (highest priority):</action>
     <action>Run: bd list --status open --label bmad-story,needs-review --json</action>
     <check if="any needs-review issues exist">
-      <action>Select oldest issue and set {{issue_id}}</action>
+      <action>Select the issue with the smallest numeric story key label (story-N-M) and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>If stop_mode is epic, also persist current epic key (from issue labels): bd config set bmad.loop.current_epic epic-<N></action>
       <action>Run: code-review-beads</action>
       <action>GOTO step 3</action>
     </check>
@@ -73,8 +80,9 @@
     <action>2) Fixes (next priority):</action>
     <action>Run: bd list --status open --label bmad-story,needs-fix --json</action>
     <check if="any needs-fix issues exist">
-      <action>Select highest priority issue and set {{issue_id}}</action>
+      <action>Select the issue with the smallest numeric story key label (story-N-M) and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>If stop_mode is epic, also persist current epic key (from issue labels): bd config set bmad.loop.current_epic epic-<N></action>
       <action>Run: dev-story-beads</action>
       <action>GOTO step 3</action>
     </check>
@@ -82,8 +90,9 @@
     <action>3) Ready dev work:</action>
     <action>Run: bd ready --json (filter for labels ready-for-dev OR bmad-followup)</action>
     <check if="any ready dev work exists">
-      <action>Select top ready issue and set {{issue_id}}</action>
+      <action>Select the issue with the smallest numeric story key label (story-N-M) and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>If stop_mode is epic, also persist current epic key (from issue labels): bd config set bmad.loop.current_epic epic-<N></action>
       <action>Run: dev-story-beads</action>
       <action>GOTO step 3</action>
     </check>
@@ -91,8 +100,9 @@
     <action>4) Specs (lowest priority):</action>
     <action>Run: bd list --status open --label bmad-story,needs-spec --json</action>
     <check if="any needs-spec issues exist">
-      <action>Pick highest priority issue and set {{issue_id}}</action>
+      <action>Select the issue with the smallest numeric story key label (story-N-M) and set {{issue_id}}</action>
       <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>If stop_mode is epic, also persist current epic key (from issue labels): bd config set bmad.loop.current_epic epic-<N></action>
       <action>Run: create-story-beads (attach BMAD STORY SPEC v1, set ready-for-dev)</action>
       <action>GOTO step 3</action>
     </check>
