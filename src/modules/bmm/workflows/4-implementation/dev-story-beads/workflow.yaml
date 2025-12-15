@@ -1,25 +1,13 @@
 name: dev-story-beads
-description: "Beads-first dev-story: implement tasks from Beads story, update story in Beads, and sync sprint status in Beads."
+description: "Beads (bd) dev execution: pick a ready Beads issue, implement, comment progress, and close the issue."
 author: "BMad"
 
 config_source: "{project-root}/_bmad/bmm/config.yaml"
-output_folder: "{config_source}:output_folder"
 user_name: "{config_source}:user_name"
 communication_language: "{config_source}:communication_language"
 user_skill_level: "{config_source}:user_skill_level"
 document_output_language: "{config_source}:document_output_language"
 date: system-generated
-
-beads:
-  enabled: "{config_source}:beads_enabled || true"
-  db: "{project-root}/_bmad/_beads/beads.json"
-  lock_name: "plane"
-  cli:
-    init: "bmad beads init --directory {project-root}"
-    land: "bmad beads land --directory {project-root}"
-    get: "bmad beads get"
-    set: "bmad beads set"
-    append: "bmad beads append"
 
 installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/dev-story-beads"
 instructions: "{installed_path}/instructions.xml"

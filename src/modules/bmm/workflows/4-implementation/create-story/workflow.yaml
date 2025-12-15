@@ -11,17 +11,8 @@ date: system-generated
 sprint_artifacts: "{config_source}:sprint_artifacts"
 story_dir: "{sprint_artifacts}"
 
-# Beads (Identity Memory) integration
-beads:
-  enabled: "{config_source}:beads_enabled || true"
-  db: "{project-root}/_bmad/_beads/beads.json"
-  lock_name: "plane"
-  cli:
-    init: "bmad beads init --directory {project-root}"
-    land: "bmad beads land --directory {project-root}"
-    get: "bmad beads get"
-    set: "bmad beads set"
-    append: "bmad beads append"
+# Beads (steveyegge/beads) integration (optional)
+# If installed, agents may use `bd prime`, `bd comment`, `bd create`, etc. for memory and coordination.
 
 # Workflow components
 installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/create-story"
@@ -60,7 +51,7 @@ input_file_patterns:
     description: "UX design (fallback - epics file should have relevant sections)"
     whole: "{output_folder}/*ux*.md"
     sharded: "{output_folder}/*ux*/*.md"
-    load_strategy: "SELECTIVE_LOAD" # Only load if needed
+    load_strategy: "SELECTIVE_LOAD" # Only load needed
   epics:
     description: "Enhanced epics+stories file with BDD and source hints"
     whole: "{output_folder}/*epic*.md"

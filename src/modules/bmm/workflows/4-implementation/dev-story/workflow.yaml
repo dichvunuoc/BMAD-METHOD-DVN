@@ -12,17 +12,8 @@ document_output_language: "{config_source}:document_output_language"
 story_dir: "{config_source}:sprint_artifacts"
 date: system-generated
 
-# Beads (Identity Memory) integration
-beads:
-  enabled: "{config_source}:beads_enabled || true"
-  db: "{project-root}/_bmad/_beads/beads.json"
-  lock_name: "plane"
-  cli:
-    init: "bmad beads init --directory {project-root}"
-    land: "bmad beads land --directory {project-root}"
-    get: "bmad beads get"
-    set: "bmad beads set"
-    append: "bmad beads append"
+# Beads (steveyegge/beads) integration (optional)
+# If installed, agents may use `bd` for memory (comments/dep/discovered-from) while still using story files.
 
 # Workflow components
 installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/dev-story"

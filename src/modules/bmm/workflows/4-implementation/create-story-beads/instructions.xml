@@ -2,42 +2,51 @@
   <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language} and generate all documents in {document_output_language}</critical>
+
   <critical>
-    Beads-first:
-    - Canonical story content lives in Beads namespace "stories" under key {{story_key}}.
-    - Sprint tracking lives in Beads namespace "sprint" key "development_status".
-    - Never write a story .md file.
-    - Never edit Beads storage files directly.
+    REAL Beads integration (steveyegge/beads):
+    - Canonical tracker is Beads issues (bd).
+    - This workflow does NOT create a story .md file.
+    - It enriches a Beads story issue by adding a full BMAD story spec as a comment.
+
+    Required tools:
+    - bd init
+    - bd list / bd ready
+    - bd show
+    - bd comments add
+    - bd label add
   </critical>
 
-  <step n="1" goal="Select next backlog story from Beads">
-    <action>Run: {beads.cli.init}</action>
-    <action>Run: {beads.cli.land}</action>
-    <action>Read sprint tracking: {beads.cli.get} sprint development_status</action>
-    <action>Pick FIRST story_key (stable order) with status == "backlog"</action>
-    <action>Set {{story_key}}</action>
+  <step n="1" goal="Select a story issue to enrich">
+    <action>Ensure `bd` is installed and available.</action>
+    <action>Run `bd init` if needed.</action>
+    <action>Find candidate story issues:
+      - Prefer: bd list --status open --label bmad-story --json
+      - Or: bd ready --json (filter for label bmad-story)
+    </action>
+    <action>Select the next story issue to enrich and set {{issue_id}}.</action>
+    <action>Load the issue: bd show {{issue_id}} --json</action>
+    <action>Load relevant project docs (epics/prd/architecture + {project_context} if exists) for context.</action>
   </step>
 
-  <step n="2" goal="Generate canonical story markdown">
-    <action>Load relevant epic section for {{story_key}} (SELECTIVE_LOAD) plus project_context if available</action>
-    <action>Generate a complete story markdown document with: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Dev Agent Record, File List, Change Log, Status</action>
-    <action>Set Status = "ready-for-dev"</action>
-  </step>
+  <step n="2" goal="Generate BMAD story spec and attach to issue">
+    <action>Generate a complete story spec markdown including:
+      - Story summary
+      - Acceptance Criteria
+      - Tasks/Subtasks (ordered)
+      - Dev Notes / constraints
+      - Test requirements
+      - Status conventions for bd (open/in_progress/blocked/closed)
+    </action>
 
-  <step n="3" goal="Store story and update tracking in Beads">
-    <action>Run: {beads.cli.land}</action>
-    <action>Write story markdown to Beads:
-      - bmad beads set stories {{story_key}} <story_markdown>
+    <action>Attach the spec as a comment (canonical, append-only):
+      - bd comments add {{issue_id}} "<BMAD STORY SPEC MARKDOWN>"
     </action>
-    <action>Update sprint.development_status for {{story_key}} to "ready-for-dev":
-      - Read existing map
-      - Modify value
-      - Write back with: bmad beads set sprint development_status <json>
+
+    <action>Add labels to indicate readiness:
+      - bd label add {{issue_id}} ready-for-dev
     </action>
-    <action>Append journal:
-      - bmad beads append sprint journal {"event":"create-story","story_key":"{{story_key}}","ts":"{date}"}
-    </action>
-    <action>Run: {beads.cli.land}</action>
-    <output>✅ Story created in Beads: {{story_key}} (ready-for-dev)</output>
+
+    <output>✅ Story spec attached to Beads issue {{issue_id}} (ready-for-dev label added)</output>
   </step>
 </workflow>

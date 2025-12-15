@@ -4,7 +4,7 @@
 <critical>You MUST have already loaded and processed: {project-root}/\_bmad/bmm/workflows/4-implementation/correct-course/workflow.yaml</critical>
 <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
 <critical>Generate all documents in {document_output_language}</critical>
-<critical>Beads (Identity Memory): if Beads is available, run `bmad beads init --directory {project-root}` once per project, and run `bmad beads land --directory {project-root}` before/after updating shared memory in multi-agent workflows.</critical>
+<critical>Beads (steveyegge/beads): if Beads is available, initialize once per repo with `bd init`, and use `bd sync`/`bd validate` (and optionally Agent Mail) to keep multi-agent state consistent. Never edit `.beads/*` manually.</critical>
 
 <critical>DOCUMENT OUTPUT: Updated epics, stories, or PRD sections. Clear, actionable changes. User skill level ({user_skill_level}) affects conversation style ONLY, not document updates.</critical>
 
