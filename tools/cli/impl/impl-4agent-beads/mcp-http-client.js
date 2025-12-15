@@ -69,7 +69,50 @@ class McpHttpClient {
       throw err;
     }
 
-    return json.result;
+    return this.#unwrapToolResult(json.result);
+  }
+
+  /**
+   * MCP tools/call typically returns: { content: [{type:"text", text:"..."}], isError?: boolean }.
+   * We want to return the actual tool payload (often JSON-encoded in the first text block).
+   *
+   * @param {any} result
+   * @returns {any}
+   */
+  #unwrapToolResult(result) {
+    // Some servers may already return raw values (arrays/objects).
+    if (Array.isArray(result)) return result;
+    if (!result || typeof result !== 'object') return result;
+
+    const content = result.content;
+    if (!Array.isArray(content) || content.length === 0) return result;
+
+    // Common case: single text block containing JSON.
+    if (content.length === 1 && content[0] && typeof content[0] === 'object') {
+      const block = content[0];
+      if (block.type === 'text' && typeof block.text === 'string') {
+        const parsed = this.#tryParseJson(block.text);
+        return parsed ?? block.text;
+      }
+
+      // Some MCP implementations may use type: "json"
+      if (block.type === 'json' && 'json' in block) return block.json;
+    }
+
+    // Fallback: return the content blocks.
+    return content;
+  }
+
+  /**
+   * @param {string} text
+   * @returns {any | null}
+   */
+  #tryParseJson(text) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
   }
 
   /**
