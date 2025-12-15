@@ -66,6 +66,81 @@ function extractIssueIdList(jsonPayload) {
   return [];
 }
 
+/**
+ * @param {string} projectRoot
+ * @param {{ status: 'open'|'closed', labels: string }} query
+ */
+async function listIssueIds(projectRoot, query) {
+  const result = await runCapture(projectRoot, 'bd', ['list', '--status', query.status, '--label', query.labels, '--json']);
+  const json = safeJsonParse(result.out);
+  return extractIssueIdList(json);
+}
+
+function buildChain({ issueId, step, toRole, toAgent, sm1Agent, dev1Agent, dev2Agent, sm2Agent }) {
+  // Standard chain: validate -> dev -> review -> done(sm1)
+  if (step === 'validate-create-story-beads') {
+    return {
+      issue_id: issueId,
+      step,
+      thread_id: String(issueId),
+      to_role: toRole,
+      to_agent_name: toAgent,
+      next_step: 'dev-story-beads',
+      next_role: 'dev1',
+      next_agent_name: dev1Agent,
+      next_next_step: 'code-review-beads',
+      next_next_role: 'dev2',
+      next_next_agent_name: dev2Agent,
+      done_to_role: 'sm1',
+      done_to_agent_name: sm1Agent,
+    };
+  }
+
+  if (step === 'dev-story-beads') {
+    return {
+      issue_id: issueId,
+      step,
+      thread_id: String(issueId),
+      to_role: toRole,
+      to_agent_name: toAgent,
+      next_step: 'code-review-beads',
+      next_role: 'dev2',
+      next_agent_name: dev2Agent,
+      done_to_role: 'sm1',
+      done_to_agent_name: sm1Agent,
+    };
+  }
+
+  if (step === 'code-review-beads') {
+    return {
+      issue_id: issueId,
+      step,
+      thread_id: String(issueId),
+      to_role: toRole,
+      to_agent_name: toAgent,
+      done_to_role: 'sm1',
+      done_to_agent_name: sm1Agent,
+    };
+  }
+
+  // create-story-beads is executed locally by SM1; chain begins with validate.
+  return {
+    issue_id: issueId,
+    step,
+    thread_id: String(issueId),
+    to_role: 'sm2',
+    to_agent_name: sm2Agent,
+    next_step: 'dev-story-beads',
+    next_role: 'dev1',
+    next_agent_name: dev1Agent,
+    next_next_step: 'code-review-beads',
+    next_next_role: 'dev2',
+    next_next_agent_name: dev2Agent,
+    done_to_role: 'sm1',
+    done_to_agent_name: sm1Agent,
+  };
+}
+
 async function main() {
   const projectRoot = process.env.BMAD_PROJECT_ROOT || process.cwd();
   const projectKey = process.env.BMAD_PROJECT_KEY || projectRoot;
@@ -125,62 +200,150 @@ async function main() {
       // Ensure bd is initialized (best-effort)
       await runCapture(projectRoot, 'bd', ['init']);
 
-      // 1) needs-spec
-      const needsSpec = await runCapture(projectRoot, 'bd', ['list', '--status', 'open', '--label', 'bmad-story,needs-spec', '--json']);
-      const needsSpecJson = safeJsonParse(needsSpec.out);
-      const ids = extractIssueIdList(needsSpecJson);
+      // Dispatcher priority (best → worst):
+      // 1) needs-spec -> SM1 runs create-story-beads locally, then dispatch validate to SM2
+      // 2) needs-validation -> dispatch validate to SM2
+      // 3) needs-fix -> dispatch dev to DEV1
+      // 4) spec-validated -> dispatch dev to DEV1
+      // 5) needs-review (closed) -> dispatch review to DEV2
 
-      if (ids.length === 0) {
-        // Nothing to do; wait.
-        await sleep(pollMs);
-        continue;
+      const needsSpecIds = await listIssueIds(projectRoot, { status: 'open', labels: 'bmad-story,needs-spec' });
+      if (needsSpecIds.length > 0) {
+        activeIssue = needsSpecIds[0];
+
+        const prompt = [
+          `You are SM1 in automation mode. Do NOT ask the human anything.`,
+          `Project root: ${projectRoot}`,
+          `Beads issue_id: ${activeIssue}`,
+          ``,
+          `Run BMAD Beads-first workflow: create-story-beads.`,
+          `Workflow file: ${projectRoot}/_bmad/bmm/workflows/4-implementation/create-story-beads/workflow.yaml`,
+          ``,
+          `Constraints:`,
+          `- Use bd CLI only; never edit .beads/* directly.`,
+          `- Force selection to issue_id ${activeIssue}.`,
+          `- Produce a short summary and exit.`,
+        ].join('\n');
+
+        const { exitCode, promptFile } = await runAgentJob({ projectRoot, prompt, logsDir });
+
+        const job = buildChain({
+          issueId: activeIssue,
+          step: 'validate-create-story-beads',
+          toRole: 'sm2',
+          toAgent: sm2Agent,
+          sm1Agent: agentName,
+          sm2Agent,
+          dev1Agent,
+          dev2Agent,
+        });
+        job.meta = { sm1_runner_exit_code: exitCode, sm1_prompt_file: promptFile };
+
+        await mcp.callTool('send_message', {
+          project_key: projectKey,
+          sender_name: agentName,
+          to: [sm2Agent],
+          subject: `BMAD JOB: validate-create-story-beads ${activeIssue}`,
+          body_md: `\`\`\`json\n${JSON.stringify(job, null, 2)}\n\`\`\`\n`,
+          thread_id: String(activeIssue),
+          auto_contact_if_blocked: true,
+        });
+      } else {
+        const needsValidationIds = await listIssueIds(projectRoot, { status: 'open', labels: 'bmad-story,needs-validation' });
+        const needsFixIds = await listIssueIds(projectRoot, { status: 'open', labels: 'bmad-story,needs-fix' });
+        const validatedIds = await listIssueIds(projectRoot, { status: 'open', labels: 'bmad-story,spec-validated' });
+        const needsReviewIds = await listIssueIds(projectRoot, { status: 'closed', labels: 'bmad-story,needs-review' });
+
+        if (needsValidationIds.length > 0) {
+          activeIssue = needsValidationIds[0];
+          const job = buildChain({
+            issueId: activeIssue,
+            step: 'validate-create-story-beads',
+            toRole: 'sm2',
+            toAgent: sm2Agent,
+            sm1Agent: agentName,
+            sm2Agent,
+            dev1Agent,
+            dev2Agent,
+          });
+          await mcp.callTool('send_message', {
+            project_key: projectKey,
+            sender_name: agentName,
+            to: [sm2Agent],
+            subject: `BMAD JOB: validate-create-story-beads ${activeIssue}`,
+            body_md: `\`\`\`json\n${JSON.stringify(job, null, 2)}\n\`\`\`\n`,
+            thread_id: String(activeIssue),
+            auto_contact_if_blocked: true,
+          });
+        } else if (needsFixIds.length > 0) {
+          activeIssue = needsFixIds[0];
+          const job = buildChain({
+            issueId: activeIssue,
+            step: 'dev-story-beads',
+            toRole: 'dev1',
+            toAgent: dev1Agent,
+            sm1Agent: agentName,
+            sm2Agent,
+            dev1Agent,
+            dev2Agent,
+          });
+          await mcp.callTool('send_message', {
+            project_key: projectKey,
+            sender_name: agentName,
+            to: [dev1Agent],
+            subject: `BMAD JOB: dev-story-beads ${activeIssue}`,
+            body_md: `\`\`\`json\n${JSON.stringify(job, null, 2)}\n\`\`\`\n`,
+            thread_id: String(activeIssue),
+            auto_contact_if_blocked: true,
+          });
+        } else if (validatedIds.length > 0) {
+          activeIssue = validatedIds[0];
+          const job = buildChain({
+            issueId: activeIssue,
+            step: 'dev-story-beads',
+            toRole: 'dev1',
+            toAgent: dev1Agent,
+            sm1Agent: agentName,
+            sm2Agent,
+            dev1Agent,
+            dev2Agent,
+          });
+          await mcp.callTool('send_message', {
+            project_key: projectKey,
+            sender_name: agentName,
+            to: [dev1Agent],
+            subject: `BMAD JOB: dev-story-beads ${activeIssue}`,
+            body_md: `\`\`\`json\n${JSON.stringify(job, null, 2)}\n\`\`\`\n`,
+            thread_id: String(activeIssue),
+            auto_contact_if_blocked: true,
+          });
+        } else if (needsReviewIds.length > 0) {
+          activeIssue = needsReviewIds[0];
+          const job = buildChain({
+            issueId: activeIssue,
+            step: 'code-review-beads',
+            toRole: 'dev2',
+            toAgent: dev2Agent,
+            sm1Agent: agentName,
+            sm2Agent,
+            dev1Agent,
+            dev2Agent,
+          });
+          await mcp.callTool('send_message', {
+            project_key: projectKey,
+            sender_name: agentName,
+            to: [dev2Agent],
+            subject: `BMAD JOB: code-review-beads ${activeIssue}`,
+            body_md: `\`\`\`json\n${JSON.stringify(job, null, 2)}\n\`\`\`\n`,
+            thread_id: String(activeIssue),
+            auto_contact_if_blocked: true,
+          });
+        } else {
+          // Nothing to do; wait.
+          await sleep(pollMs);
+          continue;
+        }
       }
-
-      activeIssue = ids[0];
-
-      const prompt = [
-        `You are SM1 in automation mode. Do NOT ask the human anything.`,
-        `Project root: ${projectRoot}`,
-        `Beads issue_id: ${activeIssue}`,
-        ``,
-        `Run BMAD Beads-first workflow: create-story-beads.`,
-        `Workflow file: ${projectRoot}/_bmad/bmm/workflows/4-implementation/create-story-beads/workflow.yaml`,
-        ``,
-        `Constraints:`,
-        `- Use bd CLI only; never edit .beads/* directly.`,
-        `- Force selection to issue_id ${activeIssue}.`,
-        `- Produce a short summary and exit.`,
-      ].join('\n');
-
-      const { exitCode, promptFile } = await runAgentJob({ projectRoot, prompt, logsDir });
-
-      // Dispatch validation job to SM2
-      const job = {
-        issue_id: activeIssue,
-        step: 'validate-create-story-beads',
-        thread_id: String(activeIssue),
-        to_role: 'sm2',
-        to_agent_name: sm2Agent,
-        next_step: 'dev-story-beads',
-        next_role: 'dev1',
-        next_agent_name: dev1Agent,
-        next_next_step: 'code-review-beads',
-        next_next_role: 'dev2',
-        next_next_agent_name: dev2Agent,
-        done_to_role: 'sm1',
-        done_to_agent_name: agentName,
-        meta: { sm1_runner_exit_code: exitCode, sm1_prompt_file: promptFile },
-      };
-
-      await mcp.callTool('send_message', {
-        project_key: projectKey,
-        sender_name: agentName,
-        to: [sm2Agent],
-        subject: `BMAD JOB: validate-create-story-beads ${activeIssue}`,
-        body_md: `\`\`\`json\n${JSON.stringify(job, null, 2)}\n\`\`\`\n`,
-        thread_id: String(activeIssue),
-        auto_contact_if_blocked: true,
-      });
     }
 
     // Wait for DONE from dev2 for this active issue.

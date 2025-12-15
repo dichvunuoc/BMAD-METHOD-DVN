@@ -54,6 +54,8 @@
     <action>Ensure labels reflect readiness:
       - bd label add {{issue_id}} ready-for-dev
       - bd label remove {{issue_id}} needs-spec (if present)
+      - bd label remove {{issue_id}} needs-validation (if present)
+      - bd label add {{issue_id}} spec-validated
     </action>
 
     <output>✅ Spec validated and (if needed) improved for {{issue_id}} (append-only)</output>
