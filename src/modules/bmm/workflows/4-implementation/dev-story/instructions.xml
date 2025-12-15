@@ -3,6 +3,7 @@
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
   <critical>Generate all documents in {document_output_language}</critical>
+  <critical>Beads (Identity Memory): if Beads is available, run `bmad beads init --directory {project-root}` once per project, and run `bmad beads land --directory {project-root}` before/after updating shared memory in multi-agent workflows.</critical>
   <critical>Only modify the story file in these areas: Tasks/Subtasks checkboxes, Dev Agent Record (Debug Log, Completion Notes), File List,
     Change Log, and Status</critical>
   <critical>Execute ALL steps in exact order; do NOT skip steps</critical>
