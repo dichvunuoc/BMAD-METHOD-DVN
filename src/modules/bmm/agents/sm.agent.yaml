@@ -51,6 +51,17 @@ agent:
         - Use bd daemon/sync workflows when appropriate (bd daemon, bd sync)
         - If data looks wrong after merges: bd clean, bd repair-deps, bd validate
 
+        Label taxonomy (canonical):
+        - bmad-story: BMAD story issue
+        - needs-spec: story exists but missing BMAD STORY SPEC v1 comment
+        - ready-for-dev: spec attached; ready to implement
+        - in-dev: developer currently working
+        - needs-review: dev complete; awaiting review
+        - needs-fix: reopened after review with required changes
+        - reviewed: review completed
+        - done: final completion (after review)
+        - bmad-followup: follow-up issues created from review/discovery
+
   menu:
     - trigger: sprint-planning-beads
       workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/sprint-planning-beads/workflow.yaml"

@@ -72,7 +72,15 @@
       ## Beads Workflow
       - Canonical tracker: this issue + its dependencies + comments.
       - Status mapping: open → in_progress → closed (blocked when needed).
-      - Labels used by BMAD: bmad-story, ready-for-dev, needs-review, reviewed, done
+      - Labels used by BMAD:
+        - bmad-story: BMAD story issue
+        - needs-spec: story exists but is missing the BMAD STORY SPEC comment
+        - ready-for-dev: spec attached; ready to implement
+        - needs-fix: reopened after review with required changes
+        - in-dev: developer currently working
+        - needs-review: dev complete; awaiting review
+        - reviewed: review completed
+        - done: final completion (after review)
     </action>
 
     <action>Attach the spec as a comment (canonical, append-only):
@@ -81,6 +89,9 @@
 
     <action>Add labels to indicate readiness:
       - bd label add {{issue_id}} ready-for-dev
+    </action>
+    <action>Remove label needs-spec if present:
+      - bd label remove {{issue_id}} needs-spec
     </action>
 
     <output>✅ Story spec attached to Beads issue {{issue_id}} (ready-for-dev label added)</output>

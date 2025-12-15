@@ -21,13 +21,19 @@
   <step n="1" goal="Select next ready story issue">
     <action>Ensure `bd` is installed and the repo is initialized (bd init).</action>
     <action>Find ready work: bd ready --json</action>
-    <action>Select the highest-priority ready issue with label bmad-story (or ready-for-dev). Set {{issue_id}}.</action>
+    <action>Select the highest-priority ready issue that matches ONE of:
+      - label bmad-story + label ready-for-dev
+      - label bmad-story + label needs-fix
+      - label bmad-followup (optional)
+      Set {{issue_id}}.
+    </action>
     <action>Load issue: bd show {{issue_id}} --json</action>
     <action>Load spec comments: bd comments {{issue_id}} --json (or without --json if unsupported) and select the latest \"BMAD STORY SPEC v1\" comment.</action>
     <action>Load {project_context} for coding standards if exists</action>
   </step>
 
   <step n="2" goal="Implement and test">
+    <action>bd label add {{issue_id}} in-dev</action>
     <action>Mark in progress: bd update {{issue_id}} --status in_progress --json</action>
     <action>Implement according to the issue spec and acceptance criteria. Follow red-green-refactor.</action>
     <action>Run full test suite. Fix failures.</action>
@@ -40,7 +46,10 @@
   <step n="3" goal="Close or block">
     <check if="all acceptance criteria satisfied and tests passing">
       <action>bd close {{issue_id}} --reason "Done" --json</action>
-      <action>bd label add {{issue_id}} done</action>
+      <action>bd label remove {{issue_id}} in-dev</action>
+      <action>bd label remove {{issue_id}} ready-for-dev</action>
+      <action>bd label remove {{issue_id}} needs-fix</action>
+      <action>bd label add {{issue_id}} needs-review</action>
       <output>✅ Closed issue {{issue_id}}</output>
     </check>
 

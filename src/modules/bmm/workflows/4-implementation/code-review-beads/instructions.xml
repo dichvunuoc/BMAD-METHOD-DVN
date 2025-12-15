@@ -19,8 +19,8 @@
 
   <step n="1" goal="Select issue to review">
     <action>Ensure `bd` is installed and initialized.</action>
-    <action>Select a recently completed story issue to review:
-      - Prefer: bd list --status closed --label bmad-story --json (pick the most recent)
+    <action>Select a story issue to review:
+      - Prefer: bd list --status closed --label bmad-story,needs-review --json (pick the most recent)
       - Or: user provides issue_id
     </action>
     <action>Set {{issue_id}}</action>
@@ -45,13 +45,24 @@
         - bd create "Follow-up: ..." -t task -p 2 --deps discovered-from:{{issue_id}} --json
       </action>
       <action>Label follow-ups for queueing (recommended): bd label add <new_id> bmad-followup</action>
+      <action>Block the story on follow-ups (recommended):
+        - bd dep add <new_id> {{issue_id}} --type blocks
+      </action>
+      <action>Reopen story for fixes and set labels:
+        - bd reopen {{issue_id}} --reason \"Changes requested\" --json
+        - bd label remove {{issue_id}} needs-review
+        - bd label add {{issue_id}} needs-fix
+      </action>
     </check>
   </step>
 
   <step n="3" goal="Finalize status">
     <check if="all HIGH/MEDIUM fixed and ACs satisfied">
       <action>Ensure issue is closed (bd close {{issue_id}} if needed)</action>
+      <action>bd label remove {{issue_id}} needs-review</action>
+      <action>bd label remove {{issue_id}} needs-fix</action>
       <action>bd label add {{issue_id}} reviewed</action>
+      <action>bd label add {{issue_id}} done</action>
       <output>✅ Review complete: {{issue_id}}</output>
     </check>
 

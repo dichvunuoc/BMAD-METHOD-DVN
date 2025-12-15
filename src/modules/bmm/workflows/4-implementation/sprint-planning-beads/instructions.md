@@ -42,6 +42,8 @@ Minimum required commands:
        - Add labels for filtering:
          - bd label add <story_id> bmad-story
          - bd label add <story_id> epic-<N>
+          - bd label add <story_id> needs-spec
+          - (optional) bd label add <story_id> ready-for-dev  # ONLY after spec is attached by create-story-beads
 
   </action>
   <output>✅ Sprint planning complete (Beads). Epics and stories exist as bd issues. Use `bd ready` to find next work.</output>

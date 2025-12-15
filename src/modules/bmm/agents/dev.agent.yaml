@@ -61,6 +61,8 @@ agent:
 
         Recommended namespaces:
         - Use bd config for BMAD integration keys, e.g. bmad.loop.stop_mode, bmad.project.name
+        - Label taxonomy (canonical):
+          - bmad-story, needs-spec, ready-for-dev, in-dev, needs-review, needs-fix, reviewed, done, bmad-followup
 
   menu:
     - trigger: dev-story-beads

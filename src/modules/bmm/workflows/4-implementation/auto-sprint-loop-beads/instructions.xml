@@ -20,6 +20,19 @@
     - Use bd validate / bd doctor when the DB looks suspicious
   </critical>
 
+  <critical>
+    BMAD Label Taxonomy (canonical):
+    - bmad-story: BMAD story issue
+    - needs-spec: story exists but missing BMAD STORY SPEC v1 comment
+    - ready-for-dev: spec attached; ready to implement
+    - in-dev: developer currently working
+    - needs-review: dev complete; awaiting review
+    - needs-fix: reopened after review with required changes
+    - reviewed: review completed
+    - done: final completion (after review)
+    - bmad-followup: follow-up issues created from review/discovery
+  </critical>
+
   <step n="0" goal="Ensure bd is initialized and set stop mode">
     <action>Ensure `bd` is installed and available on PATH; if not, HALT with installation instructions (see https://github.com/steveyegge/beads)</action>
     <action>Run: bd init (if .beads is not present)</action>
@@ -38,40 +51,43 @@
     </check>
   </step>
 
-  <step n="1" goal="Find next ready work">
-    <critical>No-ask on work selection; always pick the top ready item in priority order.</critical>
-    <action>Run: bd ready --json</action>
-    <action>Select the highest-priority ready issue (lowest priority number). If multiple, pick the first in returned order.</action>
-    <check if="no ready issues">
-      <output>No ready issues. Check blocked issues:</output>
-      <action>Run: bd blocked --json</action>
-      <output>If everything is blocked, fix blockers or create new work. Loop stops here.</output>
-      <action>HALT</action>
+  <step n="1" goal="Pick next action by labels (no-ask)">
+    <critical>Prefer deterministic phases over generic ready queue.</critical>
+
+    <action>1) If any story issues need specs, enrich them first:</action>
+    <action>Run: bd list --status open --label bmad-story,needs-spec --json</action>
+    <check if="any needs-spec issues exist">
+      <action>Pick highest priority issue and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>Run: create-story-beads (attach BMAD STORY SPEC v1, set ready-for-dev)</action>
+      <action>GOTO step 1</action>
     </check>
 
-    <action>Set {{issue_id}} = selected issue id</action>
-    <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+    <action>2) If any stories are ready to implement/fix, run dev:</action>
+    <action>Run: bd ready --json (filter for labels ready-for-dev OR needs-fix OR bmad-followup)</action>
+    <check if="any ready dev work exists">
+      <action>Select top ready issue and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>Run: dev-story-beads</action>
+      <action>GOTO step 3</action>
+    </check>
+
+    <action>3) If any stories need review, run review:</action>
+    <action>Run: bd list --status closed --label bmad-story,needs-review --json</action>
+    <check if="any needs-review issues exist">
+      <action>Select most recent and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>Run: code-review-beads</action>
+      <action>GOTO step 3</action>
+    </check>
+
+    <output>No actionable work found (no needs-spec, no ready dev work, no needs-review). Check blocked issues:</output>
+    <action>Run: bd blocked --json</action>
+    <action>HALT</action>
   </step>
 
-  <step n="2" goal="Execute: implement the issue">
-    <action>Run: bd show {{issue_id}} --json</action>
-    <action>Run: bd dep tree {{issue_id}} (verify not blocked)</action>
-    <action>Update status: bd update {{issue_id}} --status in_progress --json</action>
-
-    <action>Implement the issue according to its description/acceptance criteria. Write tests. Run the full test suite.</action>
-
-    <action>Add a progress comment summarizing what changed and tests run:
-      - bd comments add {{issue_id}} "Implemented: ...; Tests: ...; Files: ..."
-    </action>
-
-    <action>Close issue if complete:
-      - bd close {{issue_id}} --reason "Done" --json
-    </action>
-
-    <check if="cannot complete due to missing info or external dependency">
-      <action>bd update {{issue_id}} --status blocked --json</action>
-      <action>bd comments add {{issue_id}} "BLOCKED: <why>"</action>
-    </check>
+  <step n="2" goal="(reserved) - execution happens in sub-workflows">
+    <action>Execution is delegated to create-story-beads / dev-story-beads / code-review-beads.</action>
   </step>
 
   <step n="3" goal="Stop-mode gate">
@@ -98,8 +114,7 @@
       After this checkpoint, it's safe to dismiss/clear agent context.
       Re-running this same workflow should resume from Beads state (bd config keys).
     </critical>
-    <action>bd comments add {{issue_id}} "Checkpoint saved. Safe to clear agent context."
-    </action>
+    <action>bd comments add {{issue_id}} "BMAD CHECKPOINT v1\nSafe to clear agent context. Re-run auto-sprint-loop-beads to continue."</action>
     <action>HALT</action>
   </step>
 </workflow>
