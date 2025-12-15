@@ -1,0 +1,45 @@
+<workflow>
+  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>Generate all documents in {document_output_language}</critical>
+  <critical>
+    Beads-first:
+    - Read canonical story markdown from Beads namespace "stories" key {{story_key}}.
+    - Update canonical story markdown back into Beads (checkboxes, Dev Agent Record, File List, Change Log, Status).
+    - Sync sprint tracking in Beads namespace "sprint" key "development_status".
+  </critical>
+
+  <step n="1" goal="Select next ready story from Beads">
+    <action>Run: {beads.cli.init}</action>
+    <action>Run: {beads.cli.land}</action>
+    <action>Read sprint tracking: {beads.cli.get} sprint development_status</action>
+    <action>Pick FIRST story_key with status == "ready-for-dev" OR "in-progress"</action>
+    <action>Set {{story_key}}</action>
+    <action>Read canonical story: {beads.cli.get} stories {{story_key}}</action>
+    <action>Load {project_context} for coding standards if exists</action>
+  </step>
+
+  <step n="2" goal="Implement tasks/subtasks in order">
+    <action>Parse story markdown sections and extract Tasks/Subtasks (authoritative sequence)</action>
+    <action>For each task/subtask: red-green-refactor; run tests; update code</action>
+    <action>Update story markdown in-memory:
+      - Check completed boxes
+      - Append Dev Agent Record notes
+      - Update File List
+      - Set Status to "review" when fully complete and tests passing</action>
+  </step>
+
+  <step n="3" goal="Persist to Beads and sync sprint status">
+    <action>Run: {beads.cli.land}</action>
+    <action>Write updated story markdown:
+      - bmad beads set stories {{story_key}} <updated_markdown>
+    </action>
+    <action>Update sprint.development_status[{{story_key}}] = "review" (or "in-progress" if blocked) and write back</action>
+    <action>Append journal:
+      - bmad beads append devlog {{story_key}} {"event":"dev-done","status":"review","ts":"{date}"}
+    </action>
+    <action>Run: {beads.cli.land}</action>
+    <output>✅ Dev complete (Beads-first): {{story_key}}</output>
+  </step>
+</workflow>

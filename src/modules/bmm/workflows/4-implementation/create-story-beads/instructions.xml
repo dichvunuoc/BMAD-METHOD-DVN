@@ -1,0 +1,43 @@
+<workflow>
+  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+  <critical>Communicate all responses in {communication_language} and generate all documents in {document_output_language}</critical>
+  <critical>
+    Beads-first:
+    - Canonical story content lives in Beads namespace "stories" under key {{story_key}}.
+    - Sprint tracking lives in Beads namespace "sprint" key "development_status".
+    - Never write a story .md file.
+    - Never edit Beads storage files directly.
+  </critical>
+
+  <step n="1" goal="Select next backlog story from Beads">
+    <action>Run: {beads.cli.init}</action>
+    <action>Run: {beads.cli.land}</action>
+    <action>Read sprint tracking: {beads.cli.get} sprint development_status</action>
+    <action>Pick FIRST story_key (stable order) with status == "backlog"</action>
+    <action>Set {{story_key}}</action>
+  </step>
+
+  <step n="2" goal="Generate canonical story markdown">
+    <action>Load relevant epic section for {{story_key}} (SELECTIVE_LOAD) plus project_context if available</action>
+    <action>Generate a complete story markdown document with: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Dev Agent Record, File List, Change Log, Status</action>
+    <action>Set Status = "ready-for-dev"</action>
+  </step>
+
+  <step n="3" goal="Store story and update tracking in Beads">
+    <action>Run: {beads.cli.land}</action>
+    <action>Write story markdown to Beads:
+      - bmad beads set stories {{story_key}} <story_markdown>
+    </action>
+    <action>Update sprint.development_status for {{story_key}} to "ready-for-dev":
+      - Read existing map
+      - Modify value
+      - Write back with: bmad beads set sprint development_status <json>
+    </action>
+    <action>Append journal:
+      - bmad beads append sprint journal {"event":"create-story","story_key":"{{story_key}}","ts":"{date}"}
+    </action>
+    <action>Run: {beads.cli.land}</action>
+    <output>✅ Story created in Beads: {{story_key}} (ready-for-dev)</output>
+  </step>
+</workflow>
