@@ -2,7 +2,7 @@
   <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language} and generate all documents in {document_output_language}</critical>
-  <critical>Beads (Identity Memory): if Beads is available, run `bmad beads init --directory {project-root}` once per project, and run `bmad beads land --directory {project-root}` before/after updating shared memory in multi-agent workflows.</critical>
+  <critical>Beads (steveyegge/beads): if Beads is available, initialize once per repo with `bd init`, and use `bd sync`/`bd validate` (and optionally Agent Mail) to keep multi-agent state consistent. Never edit `.beads/*` manually.</critical>
 
   <critical>🔥 CRITICAL MISSION: You are creating the ULTIMATE story context engine that prevents LLM developer mistakes, omissions or
     disasters! 🔥</critical>

@@ -2,42 +2,98 @@
   <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language} and generate all documents in {document_output_language}</critical>
+
   <critical>
-    Beads-first:
-    - Canonical story content lives in Beads namespace "stories" under key {{story_key}}.
-    - Sprint tracking lives in Beads namespace "sprint" key "development_status".
-    - Never write a story .md file.
-    - Never edit Beads storage files directly.
+    REAL Beads integration (steveyegge/beads):
+    - Canonical tracker is Beads issues (bd).
+    - This workflow does NOT create a story .md file.
+    - It enriches a Beads story issue by adding a full BMAD story spec as a single canonical comment.
+
+    Required tools:
+    - bd init
+    - bd list / bd ready
+    - bd show
+    - bd comments add
+    - bd label add
   </critical>
 
-  <step n="1" goal="Select next backlog story from Beads">
-    <action>Run: {beads.cli.init}</action>
-    <action>Run: {beads.cli.land}</action>
-    <action>Read sprint tracking: {beads.cli.get} sprint development_status</action>
-    <action>Pick FIRST story_key (stable order) with status == "backlog"</action>
-    <action>Set {{story_key}}</action>
+  <critical>
+    ATOMIC SPEC CONVENTION (v1):
+    - The story spec MUST be a single comment containing a stable marker header, so other workflows can reliably find it.
+    - Marker header: \"BMAD STORY SPEC v1\"
+    - The spec comment is append-only; updates are done by adding a newer \"BMAD STORY SPEC v1\" comment (never editing .beads files).
+  </critical>
+
+  <step n="1" goal="Select a story issue to enrich">
+    <action>Ensure `bd` is installed and available.</action>
+    <action>Run `bd init` if needed.</action>
+    <action>Find candidate story issues:
+      - Prefer: bd list --status open --label bmad-story --json
+      - Or: bd ready --json (filter for label bmad-story)
+    </action>
+    <action>Select the next story issue to enrich and set {{issue_id}}.</action>
+    <action>Load the issue: bd show {{issue_id}} --json</action>
+    <action>Load existing comments (if any): bd comments {{issue_id}} --json (or without --json if unsupported) and detect whether a prior \"BMAD STORY SPEC v1\" exists.</action>
+    <action>Load relevant project docs (epics/prd/architecture + {project_context} if exists) for context.</action>
   </step>
 
-  <step n="2" goal="Generate canonical story markdown">
-    <action>Load relevant epic section for {{story_key}} (SELECTIVE_LOAD) plus project_context if available</action>
-    <action>Generate a complete story markdown document with: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Dev Agent Record, File List, Change Log, Status</action>
-    <action>Set Status = "ready-for-dev"</action>
-  </step>
+  <step n="2" goal="Generate BMAD story spec and attach to issue">
+    <action>Generate a single markdown comment using EXACT template below (fill in placeholders):</action>
+    <action>
+      ---
+      BMAD STORY SPEC v1
+      Issue: {{issue_id}}
+      Generated: {date}
+      ---
 
-  <step n="3" goal="Store story and update tracking in Beads">
-    <action>Run: {beads.cli.land}</action>
-    <action>Write story markdown to Beads:
-      - bmad beads set stories {{story_key}} <story_markdown>
+      ## Story
+      <1-3 sentences of user value and scope>
+
+      ## Acceptance Criteria
+      - (AC1) ...
+      - (AC2) ...
+
+      ## Tasks / Subtasks (Authoritative)
+      - [ ] Task 1: ... (AC: 1)
+        - [ ] ...
+      - [ ] Task 2: ... (AC: 2)
+        - [ ] ...
+
+      ## Constraints / Notes
+      - Coding standards: {project_context} (if present)
+      - Architecture constraints: ...
+      - Non-goals: ...
+
+      ## Test Plan (Required)
+      - Unit tests: ...
+      - Integration/e2e tests: ...
+      - Commands to run locally: ...
+
+      ## Beads Workflow
+      - Canonical tracker: this issue + its dependencies + comments.
+      - Status mapping: open → in_progress → closed (blocked when needed).
+      - Labels used by BMAD:
+        - bmad-story: BMAD story issue
+        - needs-spec: story exists but is missing the BMAD STORY SPEC comment
+        - ready-for-dev: spec attached; ready to implement
+        - needs-fix: reopened after review with required changes
+        - in-dev: developer currently working
+        - needs-review: dev complete; awaiting review
+        - reviewed: review completed
+        - done: final completion (after review)
     </action>
-    <action>Update sprint.development_status for {{story_key}} to "ready-for-dev":
-      - Read existing map
-      - Modify value
-      - Write back with: bmad beads set sprint development_status <json>
+
+    <action>Attach the spec as a comment (canonical, append-only):
+      - bd comments add {{issue_id}} "<BMAD STORY SPEC v1 ... full template ...>"
     </action>
-    <action>Append journal:
-      - bmad beads append sprint journal {"event":"create-story","story_key":"{{story_key}}","ts":"{date}"}
+
+    <action>Add labels to indicate readiness:
+      - bd label add {{issue_id}} ready-for-dev
     </action>
-    <action>Run: {beads.cli.land}</action>
-    <output>✅ Story created in Beads: {{story_key}} (ready-for-dev)</output>
+    <action>Remove label needs-spec if present:
+      - bd label remove {{issue_id}} needs-spec
+    </action>
+
+    <output>✅ Story spec attached to Beads issue {{issue_id}} (ready-for-dev label added)</output>
   </step>
 </workflow>

@@ -2,7 +2,7 @@
 
 <critical>The workflow execution engine is governed by: {project-root}/\_bmad/core/tasks/workflow.xml</critical>
 <critical>You MUST have already loaded and processed: {project-root}/\_bmad/bmm/workflows/4-implementation/sprint-planning/workflow.yaml</critical>
-<critical>Beads (Identity Memory): if Beads is available, run `bmad beads init --directory {project-root}` once per project, and run `bmad beads land --directory {project-root}` before/after updating shared memory in multi-agent workflows.</critical>
+<critical>Beads (steveyegge/beads): if Beads is available, initialize once per repo with `bd init`, and use `bd sync`/`bd validate` (and optionally Agent Mail) to keep multi-agent state consistent. Never edit `.beads/*` manually.</critical>
 
 ## 📚 Document Discovery - Full Epic Loading
 

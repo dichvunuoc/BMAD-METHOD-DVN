@@ -3,90 +3,118 @@
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
   <critical>Generate all documents in {document_output_language}</critical>
-  <critical>
-    Beads-first:
-    - Sprint tracking lives in Beads: sprint.development_status.
-    - Stories live in Beads: stories.<story_key> (canonical markdown).
-    - Files are optional exports only.
 
-    Stop mode (stored in Beads): story | epic | project.
-    Ask only if missing.
+  <critical>
+    Beads-first (REAL Beads: steveyegge/beads):
+
+    - The canonical work system is Beads issues, not markdown story files.
+    - Use the bd CLI only; never edit .beads/* files by hand.
+    - Use bd dependencies (blocks, parent-child, discovered-from) and bd ready as the queue.
+
+    Loop control via bd config:
+    - bmad.loop.stop_mode = story | epic | project
+    - bmad.loop.current_issue = <issue-id>
+
+    Multi-agent integrity:
+    - Prefer bd daemon / bd sync for consistency
+    - Use bd validate / bd doctor when the DB looks suspicious
   </critical>
 
-  <step n="0" goal="Initialize and configure stop_mode">
-    <action>Run: {beads.cli.init}</action>
-    <action>Run: {beads.cli.land}</action>
-    <action>Read: bmad beads get loop stop_mode</action>
+  <critical>
+    BMAD Label Taxonomy (canonical):
+    - bmad-story: BMAD story issue
+    - needs-spec: story exists but missing BMAD STORY SPEC v1 comment
+    - ready-for-dev: spec attached; ready to implement
+    - in-dev: developer currently working
+    - needs-review: dev complete; awaiting review
+    - needs-fix: reopened after review with required changes
+    - reviewed: review completed
+    - done: final completion (after review)
+    - bmad-followup: follow-up issues created from review/discovery
+  </critical>
+
+  <step n="0" goal="Ensure bd is initialized and set stop mode">
+    <action>Ensure `bd` is installed and available on PATH; if not, HALT with installation instructions (see https://github.com/steveyegge/beads)</action>
+    <action>Run: bd init (if .beads is not present)</action>
+    <action>Run: bd doctor</action>
+
+    <action>Read stop mode: bd config get bmad.loop.stop_mode</action>
     <check if="stop_mode missing">
-      <output>Chọn chế độ dừng vòng lặp:</output>
-      <output>1) Dừng sau 1 story</output>
-      <output>2) Dừng sau 1 epic</output>
-      <output>3) Dừng khi xong cả project</output>
-      <ask>Nhập 1/2/3:</ask>
-      <check if="user chooses 1"><action>bmad beads set loop stop_mode story</action></check>
-      <check if="user chooses 2"><action>bmad beads set loop stop_mode epic</action></check>
-      <check if="user chooses 3"><action>bmad beads set loop stop_mode project</action></check>
-    </check>
-    <action>Run: {beads.cli.land}</action>
-  </step>
-
-  <step n="1" goal="Ensure sprint tracking exists in Beads">
-    <action>Read: bmad beads get sprint development_status</action>
-    <check if="missing or empty">
-      <action>Run sprint-planning-beads workflow to populate sprint.development_status</action>
+      <output>Chọn chế độ dừng vòng lặp (lưu vào Beads để lần sau không hỏi):</output>
+      <output>1) Dừng sau khi xong 1 issue (story)</output>
+      <output>2) Dừng sau khi xong 1 epic</output>
+      <output>3) Chạy đến khi xong cả project</output>
+      <ask>Nhập 1 / 2 / 3:</ask>
+      <check if="user chooses 1"><action>bd config set bmad.loop.stop_mode story</action></check>
+      <check if="user chooses 2"><action>bd config set bmad.loop.stop_mode epic</action></check>
+      <check if="user chooses 3"><action>bd config set bmad.loop.stop_mode project</action></check>
     </check>
   </step>
 
-  <step n="2" goal="Stop if project complete">
-    <action>Compute completion: all values in sprint.development_status are "done"</action>
-    <check if="complete">
-      <action>bmad beads set loop state {"status":"done","completedAt":"{date}"}</action>
-      <action>bmad beads append loop journal {"event":"project-complete","ts":"{date}"}</action>
-      <action>Run: {beads.cli.land}</action>
-      <output>✅ Project complete (Beads-first). All stories are done.</output>
+  <step n="1" goal="Pick next action by labels (no-ask)">
+    <critical>Prefer deterministic phases over generic ready queue.</critical>
+
+    <action>1) If any story issues need specs, enrich them first:</action>
+    <action>Run: bd list --status open --label bmad-story,needs-spec --json</action>
+    <check if="any needs-spec issues exist">
+      <action>Pick highest priority issue and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>Run: create-story-beads (attach BMAD STORY SPEC v1, set ready-for-dev)</action>
+      <action>GOTO step 1</action>
+    </check>
+
+    <action>2) If any stories are ready to implement/fix, run dev:</action>
+    <action>Run: bd ready --json (filter for labels ready-for-dev OR needs-fix OR bmad-followup)</action>
+    <check if="any ready dev work exists">
+      <action>Select top ready issue and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>Run: dev-story-beads</action>
+      <action>GOTO step 3</action>
+    </check>
+
+    <action>3) If any stories need review, run review:</action>
+    <action>Run: bd list --status closed --label bmad-story,needs-review --json</action>
+    <check if="any needs-review issues exist">
+      <action>Select most recent and set {{issue_id}}</action>
+      <action>Persist loop state: bd config set bmad.loop.current_issue {{issue_id}}</action>
+      <action>Run: code-review-beads</action>
+      <action>GOTO step 3</action>
+    </check>
+
+    <output>No actionable work found (no needs-spec, no ready dev work, no needs-review). Check blocked issues:</output>
+    <action>Run: bd blocked --json</action>
+    <action>HALT</action>
+  </step>
+
+  <step n="2" goal="(reserved) - execution happens in sub-workflows">
+    <action>Execution is delegated to create-story-beads / dev-story-beads / code-review-beads.</action>
+  </step>
+
+  <step n="3" goal="Stop-mode gate">
+    <action>Read stop_mode: bd config get bmad.loop.stop_mode</action>
+
+    <check if="stop_mode == 'story'">
+      <output>⏸️ Dừng theo chế độ story: {{issue_id}} đã xử lý. Chạy lại workflow để tiếp tục issue tiếp theo.</output>
       <action>HALT</action>
     </check>
-  </step>
 
-  <step n="3" goal="Select next story and advance it">
-    <action>Select FIRST story_key in sprint.development_status with status in [backlog, ready-for-dev, in-progress, review]</action>
-    <action>Store selected story_key into Beads: bmad beads set loop story_key {{story_key}}</action>
-
-    <check if="status == backlog">
-      <action>Run create-story-beads for {{story_key}}</action>
-    </check>
-
-    <check if="status == ready-for-dev or in-progress">
-      <action>Run dev-story-beads for {{story_key}}</action>
-    </check>
-
-    <check if="status == review">
-      <action>Run code-review-beads for {{story_key}}</action>
-    </check>
-
-    <action>After phase, reload sprint.development_status and read post_status for {{story_key}}</action>
-  </step>
-
-  <step n="4" goal="Stop-mode gate">
-    <action>Read stop_mode from Beads</action>
-    <action>Derive epic_num from story_key (number before first dash)</action>
-    <action>Compute epic complete: all stories with that epic_num are "done"</action>
-
-    <check if="stop_mode == story AND post_status == done">
-      <output>⏸️ Dừng theo chế độ story: {{story_key}} đã done. Chạy lại để tiếp tục.</output>
-      <action>HALT</action>
-    </check>
-
-    <check if="stop_mode == epic AND epic complete">
-      <output>⏸️ Dừng theo chế độ epic: epic {{epic_num}} đã complete. Chạy lại để tiếp tục.</output>
-      <action>HALT</action>
+    <check if="stop_mode == 'epic'">
+      <action>Determine the epic for this issue (if any) using parent-child dependencies or bd epic status.</action>
+      <action>Run: bd epic status</action>
+      <action>If the epic containing {{issue_id}} is now complete (all children closed), then HALT.</action>
+      <check if="epic is complete">
+        <output>⏸️ Dừng theo chế độ epic: epic đã hoàn tất. Chạy lại workflow để tiếp tục epic tiếp theo.</output>
+        <action>HALT</action>
+      </check>
     </check>
   </step>
 
-  <step n="5" goal="Checkpoint for context clearing">
-    <action>bmad beads append loop journal {"event":"loop-continue","ts":"{date}","story_key":"{{story_key}}"}</action>
-    <action>Run: {beads.cli.land}</action>
-    <output>🔁 Loop checkpoint saved to Beads. Safe to dismiss/clear agent context. Re-run this workflow to continue.</output>
-    <action>GOTO step 2</action>
+  <step n="4" goal="Checkpoint for context clearing">
+    <critical>
+      After this checkpoint, it's safe to dismiss/clear agent context.
+      Re-running this same workflow should resume from Beads state (bd config keys).
+    </critical>
+    <action>bd comments add {{issue_id}} "BMAD CHECKPOINT v1\nSafe to clear agent context. Re-run auto-sprint-loop-beads to continue."</action>
+    <action>HALT</action>
   </step>
 </workflow>

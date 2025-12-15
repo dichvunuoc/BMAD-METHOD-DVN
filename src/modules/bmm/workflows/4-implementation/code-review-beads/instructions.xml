@@ -3,42 +3,71 @@
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
   <critical>Generate all documents in {document_output_language}</critical>
+
   <critical>
-    Beads-first:
-    - The story is stored in Beads (namespace "stories").
-    - Review status is tracked in Beads sprint.development_status.
-    - No user choice prompts: always auto-fix HIGH+MEDIUM issues.
+    REAL Beads integration (steveyegge/beads):
+    - Review targets a Beads issue and its spec (description + spec comments).
+    - No interactive choices: always auto-fix HIGH+MEDIUM issues when possible.
+    - If follow-ups remain, create discovered-from issues and link them.
   </critical>
 
-  <step n="1" goal="Select reviewable story and load it from Beads">
-    <action>Run: {beads.cli.init}</action>
-    <action>Run: {beads.cli.land}</action>
-    <action>Read sprint tracking: {beads.cli.get} sprint development_status</action>
-    <action>Pick FIRST story_key with status == "review" OR "in-progress"</action>
-    <action>Set {{story_key}}</action>
-    <action>Read canonical story: {beads.cli.get} stories {{story_key}}</action>
-    <action>Run `git status --porcelain` and `git diff --name-only` to discover changed files</action>
-    <action>Load {project_context} for coding standards if exists</action>
+  <critical>
+    ATOMIC SPEC CONVENTION (v1):
+    - Find the latest comment containing: \"BMAD STORY SPEC v1\" and review against it.
+    - Record review results as a single append-only comment with marker: \"BMAD REVIEW v1\".
+  </critical>
+
+  <step n="1" goal="Select issue to review">
+    <action>Ensure `bd` is installed and initialized.</action>
+    <action>Select a story issue to review:
+      - Prefer: bd list --status closed --label bmad-story,needs-review --json (pick the most recent)
+      - Or: user provides issue_id
+    </action>
+    <action>Set {{issue_id}}</action>
+    <action>Load issue: bd show {{issue_id}} --json</action>
+    <action>Load spec comments: bd comments {{issue_id}} --json (or without --json if unsupported) and select the latest \"BMAD STORY SPEC v1\" comment.</action>
+    <action>Discover actual changes with git: git status --porcelain; git diff --name-only; git diff --cached --name-only</action>
+    <action>Load {project_context} if exists</action>
   </step>
 
   <step n="2" goal="Adversarial review + auto-fix">
-    <action>Validate each Acceptance Criterion against actual implementation</action>
-    <action>Validate each [x] task actually done</action>
-    <action>Find 3-10 actionable issues minimum</action>
-    <action>Auto-fix ALL HIGH+MEDIUM issues now (apply changes + add tests as needed)</action>
-    <action>Update story markdown:
-      - Append review notes under "Senior Developer Review (AI)"
-      - Update Change Log
-      - Update File List
-      - Set Status to "done" if all issues resolved and ACs implemented; else "in-progress"</action>
+    <action>Validate each Acceptance Criterion against actual implementation.</action>
+    <action>Find 3-10 actionable issues minimum. Categorize HIGH/MEDIUM/LOW.</action>
+    <action>Auto-fix all HIGH+MEDIUM issues now when feasible (code + tests).</action>
+
+    <action>Record review results as a single comment using this template:</action>
+    <action>
+      bd comments add {{issue_id}} \"BMAD REVIEW v1\\nSummary: <1-2 sentences>\\nHIGH:\\n- ...\\nMEDIUM:\\n- ...\\nLOW:\\n- ...\\nFixed in this pass:\\n- ...\\nRemaining follow-ups:\\n- ...\\nEvidence:\\n- Files: <list>\\n- Tests: <commands + results>\"
+    </action>
+
+    <check if="remaining HIGH/MEDIUM issues exist">
+      <action>Create follow-up issues and link them discovered-from:
+        - bd create "Follow-up: ..." -t task -p 2 --deps discovered-from:{{issue_id}} --json
+      </action>
+      <action>Label follow-ups for queueing (recommended): bd label add <new_id> bmad-followup</action>
+      <action>Block the story on follow-ups (recommended):
+        - bd dep add <new_id> {{issue_id}} --type blocks
+      </action>
+      <action>Reopen story for fixes and set labels:
+        - bd reopen {{issue_id}} --reason \"Changes requested\" --json
+        - bd label remove {{issue_id}} needs-review
+        - bd label add {{issue_id}} needs-fix
+      </action>
+    </check>
   </step>
 
-  <step n="3" goal="Persist review results to Beads">
-    <action>Run: {beads.cli.land}</action>
-    <action>Write updated story markdown: bmad beads set stories {{story_key}} <updated_markdown></action>
-    <action>Update sprint.development_status[{{story_key}}] to "done" or "in-progress" and write back</action>
-    <action>Append journal: bmad beads append devlog {{story_key}} {"event":"review","ts":"{date}","status":"{{new_status}}"}</action>
-    <action>Run: {beads.cli.land}</action>
-    <output>✅ Code review complete (Beads-first): {{story_key}} → {{new_status}}</output>
+  <step n="3" goal="Finalize status">
+    <check if="all HIGH/MEDIUM fixed and ACs satisfied">
+      <action>Ensure issue is closed (bd close {{issue_id}} if needed)</action>
+      <action>bd label remove {{issue_id}} needs-review</action>
+      <action>bd label remove {{issue_id}} needs-fix</action>
+      <action>bd label add {{issue_id}} reviewed</action>
+      <action>bd label add {{issue_id}} done</action>
+      <output>✅ Review complete: {{issue_id}}</output>
+    </check>
+
+    <check if="follow-ups exist">
+      <output>🔄 Follow-ups created and linked to {{issue_id}}. Continue with bd ready queue.</output>
+    </check>
   </step>
 </workflow>

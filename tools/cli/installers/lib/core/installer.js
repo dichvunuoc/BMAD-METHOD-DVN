@@ -1472,22 +1472,6 @@ If AgentVibes party mode is enabled, immediately trigger TTS with agent's voice:
     await fs.ensureDir(path.join(bmadDir, '_config'));
     await fs.ensureDir(path.join(bmadDir, '_config', 'agents'));
     await fs.ensureDir(path.join(bmadDir, '_config', 'custom'));
-    // Beads: identity memory store (installed projects)
-    await fs.ensureDir(path.join(bmadDir, '_beads'));
-
-    // Initialize Beads DB if missing (never overwrite existing data)
-    const beadsDbPath = path.join(bmadDir, '_beads', 'beads.json');
-    if (!(await fs.pathExists(beadsDbPath))) {
-      const now = new Date().toISOString();
-      const initialDb = {
-        version: 1,
-        createdAt: now,
-        updatedAt: now,
-        namespaces: {},
-        journal: [],
-      };
-      await fs.writeFile(beadsDbPath, JSON.stringify(initialDb, null, 2) + '\n', 'utf8');
-    }
   }
 
   /**

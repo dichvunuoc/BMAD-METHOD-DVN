@@ -1,5 +1,5 @@
 name: create-story-beads
-description: "Beads-first create-story: generate canonical story markdown and store in Beads (namespace stories)."
+description: "Beads (bd) story enrichment: generate a full BMAD story spec and attach it to a Beads issue as a comment (canonical tracker is bd)."
 author: "BMad"
 
 config_source: "{project-root}/_bmad/bmm/config.yaml"
@@ -8,17 +8,6 @@ user_name: "{config_source}:user_name"
 communication_language: "{config_source}:communication_language"
 document_output_language: "{config_source}:document_output_language"
 date: system-generated
-
-beads:
-  enabled: "{config_source}:beads_enabled || true"
-  db: "{project-root}/_bmad/_beads/beads.json"
-  lock_name: "plane"
-  cli:
-    init: "bmad beads init --directory {project-root}"
-    land: "bmad beads land --directory {project-root}"
-    get: "bmad beads get"
-    set: "bmad beads set"
-    append: "bmad beads append"
 
 installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/create-story-beads"
 instructions: "{installed_path}/instructions.xml"

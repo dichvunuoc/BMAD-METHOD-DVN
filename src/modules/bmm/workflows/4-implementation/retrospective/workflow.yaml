@@ -12,17 +12,8 @@ document_output_language: "{config_source}:document_output_language"
 date: system-generated
 sprint_artifacts: "{config_source}:sprint_artifacts"
 
-# Beads (Identity Memory) integration
-beads:
-  enabled: "{config_source}:beads_enabled || true"
-  db: "{project-root}/_bmad/_beads/beads.json"
-  lock_name: "plane"
-  cli:
-    init: "bmad beads init --directory {project-root}"
-    land: "bmad beads land --directory {project-root}"
-    get: "bmad beads get"
-    set: "bmad beads set"
-    append: "bmad beads append"
+# Beads (steveyegge/beads) integration (optional)
+# If installed, you may use bd prime / bd comments / bd message for context and multi-agent coordination.
 
 installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/retrospective"
 template: false
